@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::util::{quadtree::QuadtreeStats, rect::transform_to_rect};
+use crate::util::quadtree::QuadtreeStats;
 
 use super::{
     components::{Boid, Velocity},
@@ -22,10 +22,9 @@ pub fn update_quadtree(
     mut quadtree: ResMut<EntityQuadtree>,
 ) {
     for (entity, transform) in &entity_query {
-        let rect = transform_to_rect(transform);
-        let entity_wrapper = EntityWrapper { entity, rect };
-        quadtree.delete(&entity_wrapper);
-        quadtree.add(entity_wrapper);
+        let value = EntityWrapper::new(entity, transform);
+        quadtree.delete(&value);
+        quadtree.add(value);
     }
     quadtree.clean_structure();
     QuadtreeStats::calculate(&quadtree).print();
@@ -36,8 +35,7 @@ pub fn avoid_nearby_boids(
     quadtree: Res<EntityQuadtree>,
 ) {
     for (mut velocity, entity, transform) in &mut velocity_query {
-        let rect = transform_to_rect(transform);
-        let my_value = EntityWrapper { entity, rect };
+        let my_value = EntityWrapper::new(entity, transform);
         let my_diag = my_value.rect.max - my_value.rect.min;
         let my_midpoint = my_value.rect.min + my_diag / 2.;
         let mut velocity_correction = Vec3::new(0., 0., 0.);
