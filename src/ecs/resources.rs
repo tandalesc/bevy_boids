@@ -13,4 +13,10 @@ impl Locatable for EntityWrapper {
     }
 }
 
+impl PartialEq for EntityWrapper {
+    fn eq(&self, other: &Self) -> bool {
+        self.entity == other.entity
+    }
+}
+
 pub type EntityQuadtree = Quadtree<EntityWrapper>;

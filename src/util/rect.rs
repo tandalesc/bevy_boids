@@ -30,12 +30,14 @@ pub fn partition_rect(rect: &Rect) -> [Rect; 4] {
     ]
 }
 
-// pub fn expand_rect(a: &Rect, b: &Rect) -> Rect {
-//     Rect {
-//         min: Vec2::new(a.min.x.min(b.min.x), a.min.y.min(b.min.y)),
-//         max: Vec2::new(a.max.x.max(b.max.x), a.max.y.max(b.max.y)),
-//     }
-// }
+pub fn transform_to_rect(transform: &Transform) -> Rect {
+    let new_min = Vec2::new(transform.translation.x, transform.translation.y);
+    let new_max = new_min + Vec2::new(transform.scale.x, transform.scale.y);
+    Rect {
+        min: new_min,
+        max: new_max,
+    }
+}
 
 pub fn rect_contains_point(rect: &Rect, point: &Vec2) -> bool {
     rect.min.x < point.x && point.x < rect.max.x && rect.min.y < point.y && point.y < rect.max.y

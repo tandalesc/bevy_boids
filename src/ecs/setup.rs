@@ -10,10 +10,10 @@ use super::{
 pub fn spawn_boids(mut commands: Commands, mut quadtree: ResMut<EntityQuadtree>) {
     // create 400 boids
     let scale = Vec3::new(10., 10., 0.);
-    for x_i32 in 0..20 {
-        for y_i32 in 0..20 {
-            let x = (x_i32 as f32) * 20. - 10.;
-            let y = (y_i32 as f32) * 20. - 50.;
+    for x_i32 in 0..50 {
+        for y_i32 in 0..50 {
+            let x = (x_i32 as f32) * 20. - 100.;
+            let y = (y_i32 as f32) * 20. - 100.;
             let translation = Vec3::new(x, y, 0.);
             let rect = Rect {
                 min: Vec2::new(x, y),
@@ -29,9 +29,9 @@ pub fn spawn_boids(mut commands: Commands, mut quadtree: ResMut<EntityQuadtree>)
                 .id();
             //add to quadtree
             quadtree.add(EntityWrapper { entity, rect });
-            quadtree.debug();
         }
     }
+    quadtree.debug();
 }
 
 pub fn setup_camera(mut commands: Commands) {

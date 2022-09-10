@@ -9,7 +9,7 @@ pub trait Locatable {
     fn get_rect(&self) -> &Rect;
 }
 
-pub struct Quadtree<T: Locatable> {
+pub struct Quadtree<T: Locatable + PartialEq> {
     pub rect: Rect,
     pub root: QuadtreeNode<T>,
 }
@@ -21,7 +21,7 @@ pub struct QuadtreeNode<T> {
     pub values: Vec<T>,
 }
 
-impl<T: Locatable> Quadtree<T> {
+impl<T: Locatable + PartialEq> Quadtree<T> {
     pub fn empty(size: Rect) -> Self {
         Quadtree {
             rect: size.clone(),
@@ -41,6 +41,30 @@ impl<T: Locatable> Quadtree<T> {
         self.root.add(value);
     }
 
+    pub fn delete(&mut self, value: &T) -> Option<T> {
+        if let Some(node) = self.query_value_mut(value) {
+            node.delete(value)
+        } else {
+            None
+        }
+    }
+
+    pub fn query_value(&self, value: &T) -> Option<&QuadtreeNode<T>> {
+        if self.root.contains_value(value) {
+            Some(&self.root)
+        } else {
+            self.root.find_value(value)
+        }
+    }
+
+    pub fn query_value_mut(&mut self, value: &T) -> Option<&mut QuadtreeNode<T>> {
+        if self.root.contains_value(value) {
+            Some(&mut self.root)
+        } else {
+            self.root.find_value_mut(value)
+        }
+    }
+
     pub fn debug(&self) {
         println!(
             "Quadtree Stats - Nodes: {} - Values: {}",
@@ -50,7 +74,7 @@ impl<T: Locatable> Quadtree<T> {
     }
 }
 
-impl<T: Locatable> QuadtreeNode<T> {
+impl<T: Locatable + PartialEq> QuadtreeNode<T> {
     pub fn empty(rect: Rect, depth: usize) -> Self {
         QuadtreeNode {
             rect,
@@ -109,7 +133,61 @@ impl<T: Locatable> QuadtreeNode<T> {
         rect_contains_rect(&self.rect, rect)
     }
 
+    pub fn contains_value(&self, value: &T) -> bool {
+        self.values.contains(value)
+    }
+
+    pub fn find_value(&self, value: &T) -> Option<&QuadtreeNode<T>> {
+        if !self.contains_rect(value.get_rect()) {
+            return None;
+        }
+        if let Some(boxed_children) = &self.children {
+            for child in boxed_children.iter() {
+                if let Some(node) = child.find_value(value) {
+                    if node.contains_value(value) {
+                        return Some(node);
+                    } else if node.contains_rect(value.get_rect()) {
+                        return node.find_value(value);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    pub fn find_value_mut(&mut self, value: &T) -> Option<&mut QuadtreeNode<T>> {
+        if !self.contains_rect(value.get_rect()) {
+            return None;
+        }
+        if let Some(boxed_children) = &mut self.children {
+            for child in boxed_children.iter_mut() {
+                if let Some(node) = child.find_value_mut(value) {
+                    if node.contains_value(value) {
+                        return Some(node);
+                    } else if node.contains_rect(value.get_rect()) {
+                        return node.find_value_mut(value);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    pub fn delete(&mut self, value: &T) -> Option<T> {
+        for value_idx in 0..self.values.len() {
+            if let Some(v) = self.values.get(value_idx) {
+                if v == value {
+                    return Some(self.values.remove(value_idx));
+                }
+            }
+        }
+        None
+    }
+
     pub fn query_rect(&self, rect: &Rect) -> Option<&QuadtreeNode<T>> {
+        if !self.contains_rect(rect) {
+            return None;
+        }
         if let Some(boxed_children) = &self.children {
             for child in boxed_children.iter() {
                 if child.contains_rect(rect) {
@@ -120,36 +198,15 @@ impl<T: Locatable> QuadtreeNode<T> {
         None
     }
 
-    pub fn query_rect_smallest(&self, rect: &Rect) -> Option<&QuadtreeNode<T>> {
-        let mut pointer = self;
-        while let Some(node) = pointer.query_rect(rect) {
-            if node.is_leaf() {
-                return Some(node);
-            } else {
-                pointer = node;
-            }
+    pub fn query_rect_mut(&mut self, rect: &Rect) -> Option<&mut QuadtreeNode<T>> {
+        if !self.contains_rect(rect) {
+            return None;
         }
-        None
-    }
-
-    fn query_rect_mut(&mut self, rect: &Rect) -> Option<&mut QuadtreeNode<T>> {
         if let Some(boxed_children) = &mut self.children {
             for child in boxed_children.iter_mut() {
                 if child.contains_rect(rect) {
                     return Some(child);
                 }
-            }
-        }
-        None
-    }
-
-    pub fn query_rect_smallest_mut(&mut self, rect: &Rect) -> Option<&mut QuadtreeNode<T>> {
-        let mut pointer = self;
-        while let Some(node) = pointer.query_rect_mut(rect) {
-            if node.is_leaf() {
-                return Some(node);
-            } else {
-                pointer = node;
             }
         }
         None

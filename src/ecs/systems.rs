@@ -1,4 +1,6 @@
-use bevy::{prelude::*, sprite::Rect};
+use bevy::prelude::*;
+
+use crate::util::rect::transform_to_rect;
 
 use super::{
     components::{Boid, Velocity},
@@ -19,30 +21,32 @@ pub fn update_quadtree(
     entity_query: Query<(Entity, &Transform), With<Boid>>,
     mut quadtree: ResMut<EntityQuadtree>,
 ) {
-    for (current_entity, transform) in &entity_query {
-        let new_min = Vec2::new(transform.translation.x, transform.translation.y);
-        let new_max = new_min + Vec2::new(transform.scale.x, transform.scale.y);
-        let new_rect = Rect {
-            min: new_min,
-            max: new_max,
-        };
-        if let Some(node) = quadtree.root.query_rect_smallest_mut(&new_rect) {
-            // TODO: remove and readd entitywrapper to quadtree instead of modifying rect in place
-            // this should update the location of the node in the data structure
-            // perhaps only do this if query_rect_smallest yields something different
-            for EntityWrapper { entity, rect } in node.values.iter_mut() {
-                if current_entity.eq(&entity) {
-                    // println!("Updating rect for entity {:?}", &entity);
-                    rect.min = new_rect.min;
-                    rect.max = new_rect.max;
-                }
-            }
+    for (entity, transform) in &entity_query {
+        let rect = transform_to_rect(transform);
+        let entity_wrapper = EntityWrapper { entity, rect };
+        if let Some(node) = quadtree.query_value_mut(&entity_wrapper) {
+            node.delete(&entity_wrapper);
+            quadtree.add(entity_wrapper);
+            quadtree.debug();
         }
     }
 }
 
-pub fn update_velocity(time: Res<Time>, mut velocity_query: Query<&mut Velocity, With<Boid>>) {
-    for mut velocity in &mut velocity_query {
+pub fn update_velocity(
+    time: Res<Time>,
+    mut velocity_query: Query<(&mut Velocity, Entity, &Transform), With<Boid>>,
+    quadtree: Res<EntityQuadtree>,
+) {
+    for (mut velocity, entity, transform) in &mut velocity_query {
+        let rect = transform_to_rect(transform);
+        let value = EntityWrapper { entity, rect };
+        //collect distance to nearby boids
+        let mut distances = vec![];
+        if let Some(node) = quadtree.query_value(&value) {
+            for value in &node.values {
+                distances.push(value.rect.min.distance(node.rect.min));
+            }
+        }
         velocity.0 += Vec3::NEG_Y * 9.8 * time.delta_seconds();
     }
 }
