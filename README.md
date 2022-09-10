@@ -44,7 +44,8 @@ This is a standard Rust/Bevy application. Use
 ## Milestones
 - [x] Render Boids
 - [x] Implement basic kinematics
-- [ ] Finish Quadtree implementation
-- [ ] Finish Boid Quadtree update system
-- [ ] Implement swarming behaviors
+- [X] Implement initial Quadtree implementation
+- [X] Implement first boid behavior
+- [ ] Implement more complex behaviors
+- [ ] Refine Quadtree implementation
 - [ ] Final touches
