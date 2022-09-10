@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use bevy::prelude::*;
 
 use crate::util::{
@@ -67,7 +65,7 @@ pub fn avoid_nearby_boids(
                         let midpoint = value.rect.min + diag / 2.;
                         let distance = midpoint.distance(my_midpoint.clone());
                         let direction_away =
-                            (midpoint- my_midpoint).normalize_or_zero().extend(0.);
+                            (midpoint - my_midpoint).normalize_or_zero().extend(0.);
                         velocity_correction += direction_away / (1. + 0.1 * distance.exp());
                     }
                 }

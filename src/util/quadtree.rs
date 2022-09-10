@@ -1,4 +1,4 @@
-use std::{ops::AddAssign};
+use std::ops::AddAssign;
 
 use bevy::sprite::Rect;
 

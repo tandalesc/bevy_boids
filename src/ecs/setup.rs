@@ -17,8 +17,8 @@ pub fn spawn_boids(mut commands: Commands, mut quadtree: ResMut<EntityQuadtree>)
     for x_i32 in 0..count.0 {
         for y_i32 in 0..count.1 {
             // center boids on screen
-            let x = (x_i32 as f32) * spacing.0 - count.0 as f32/2. * spacing.0;
-            let y = (y_i32 as f32) * spacing.1 - count.1 as f32/2. * spacing.1;
+            let x = (x_i32 as f32) * spacing.0 - count.0 as f32 / 2. * spacing.0;
+            let y = (y_i32 as f32) * spacing.1 - count.1 as f32 / 2. * spacing.1;
             let translation = Vec3::new(x, y, 0.);
             let rect = Rect {
                 min: Vec2::new(x, y),

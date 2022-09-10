@@ -8,7 +8,7 @@ use bevy::{prelude::*, sprite::Rect, time::FixedTimestep};
 use self::components::CollisionEvent;
 use self::resources::EntityQuadtree;
 use self::setup::{setup_camera, spawn_boids};
-use self::systems::{apply_kinematics, avoid_nearby_boids, update_quadtree, avoid_screen_edges};
+use self::systems::{apply_kinematics, avoid_nearby_boids, avoid_screen_edges, update_quadtree};
 
 const QUADTREE_SIZE: Rect = Rect {
     min: Vec2::new(-1000., -1000.),
