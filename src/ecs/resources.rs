@@ -1,13 +1,13 @@
 use bevy::{prelude::Entity, sprite::Rect};
 
-use crate::util::quadtree::{Locatable, Quadtree};
+use crate::util::quadtree::{Quadtree, QuadtreeValue};
 
 pub struct EntityWrapper {
     pub entity: Entity,
     pub rect: Rect,
 }
 
-impl Locatable for EntityWrapper {
+impl QuadtreeValue for EntityWrapper {
     fn get_rect(&self) -> &Rect {
         &self.rect
     }

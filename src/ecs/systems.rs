@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 
-use crate::util::rect::transform_to_rect;
+use crate::util::{quadtree::QuadtreeStats, rect::transform_to_rect};
 
 use super::{
     components::{Boid, Velocity},
     resources::{EntityQuadtree, EntityWrapper},
 };
 
-pub fn update_translation(
+pub fn apply_kinematics(
     time: Res<Time>,
     mut boid_query: Query<(&Velocity, &mut Transform), With<Boid>>,
 ) {
@@ -24,29 +24,38 @@ pub fn update_quadtree(
     for (entity, transform) in &entity_query {
         let rect = transform_to_rect(transform);
         let entity_wrapper = EntityWrapper { entity, rect };
-        if let Some(node) = quadtree.query_value_mut(&entity_wrapper) {
-            node.delete(&entity_wrapper);
-            quadtree.add(entity_wrapper);
-            quadtree.debug();
-        }
+        quadtree.delete(&entity_wrapper);
+        quadtree.add(entity_wrapper);
     }
+    quadtree.clean_structure();
+    QuadtreeStats::calculate(&quadtree).print();
 }
 
-pub fn update_velocity(
-    time: Res<Time>,
+pub fn avoid_nearby_boids(
     mut velocity_query: Query<(&mut Velocity, Entity, &Transform), With<Boid>>,
     quadtree: Res<EntityQuadtree>,
 ) {
     for (mut velocity, entity, transform) in &mut velocity_query {
         let rect = transform_to_rect(transform);
-        let value = EntityWrapper { entity, rect };
-        //collect distance to nearby boids
-        let mut distances = vec![];
-        if let Some(node) = quadtree.query_value(&value) {
+        let my_value = EntityWrapper { entity, rect };
+        let my_diag = my_value.rect.max - my_value.rect.min;
+        let my_midpoint = my_value.rect.min + my_diag / 2.;
+        let mut velocity_correction = Vec3::new(0., 0., 0.);
+        if let Some(node) = quadtree.query_value(&my_value) {
+            let num_values = node.values.len();
             for value in &node.values {
-                distances.push(value.rect.min.distance(node.rect.min));
+                let diag = value.rect.max - value.rect.min;
+                let midpoint = value.rect.min + diag / 2.;
+                let distance = midpoint.distance(my_midpoint.clone());
+                let direction_away = (midpoint - my_midpoint).normalize_or_zero().extend(0.);
+                velocity_correction += direction_away / (1. + distance);
+            }
+            if num_values > 0 {
+                velocity_correction /= num_values as f32;
             }
         }
-        velocity.0 += Vec3::NEG_Y * 9.8 * time.delta_seconds();
+        if velocity_correction.length_squared() > 0.0000001 {
+            velocity.0 -= velocity_correction;
+        }
     }
 }

@@ -1,5 +1,7 @@
 use bevy::{prelude::*, sprite::Rect};
 
+use crate::util::quadtree::QuadtreeStats;
+
 use super::{
     components::{Boid, Collider, Velocity},
     resources::{EntityQuadtree, EntityWrapper},
@@ -8,12 +10,12 @@ use super::{
 /* Public Functions */
 
 pub fn spawn_boids(mut commands: Commands, mut quadtree: ResMut<EntityQuadtree>) {
+    let scale = Vec3::new(5., 5., 0.);
     // create 400 boids
-    let scale = Vec3::new(10., 10., 0.);
     for x_i32 in 0..50 {
         for y_i32 in 0..50 {
-            let x = (x_i32 as f32) * 20. - 100.;
-            let y = (y_i32 as f32) * 20. - 100.;
+            let x = (x_i32 as f32) * 10. - 100.;
+            let y = (y_i32 as f32) * 10. - 100.;
             let translation = Vec3::new(x, y, 0.);
             let rect = Rect {
                 min: Vec2::new(x, y),
@@ -31,7 +33,7 @@ pub fn spawn_boids(mut commands: Commands, mut quadtree: ResMut<EntityQuadtree>)
             quadtree.add(EntityWrapper { entity, rect });
         }
     }
-    quadtree.debug();
+    QuadtreeStats::calculate(&quadtree).print();
 }
 
 pub fn setup_camera(mut commands: Commands) {

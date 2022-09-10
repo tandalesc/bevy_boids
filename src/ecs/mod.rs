@@ -7,10 +7,8 @@ use bevy::{prelude::*, sprite::Rect, time::FixedTimestep};
 
 use self::components::CollisionEvent;
 use self::resources::EntityQuadtree;
-use self::setup::setup_camera;
-use self::setup::spawn_boids;
-use self::systems::update_quadtree;
-use self::systems::{update_translation, update_velocity};
+use self::setup::{setup_camera, spawn_boids};
+use self::systems::{apply_kinematics, avoid_nearby_boids, update_quadtree};
 
 const QUADTREE_SIZE: Rect = Rect {
     min: Vec2::new(-1000., -1000.),
@@ -41,7 +39,7 @@ pub fn run_ecs_application() {
 fn physics_system_set(physics_frame_rate: f64) -> SystemSet {
     SystemSet::new()
         .with_run_criteria(FixedTimestep::step(1. / physics_frame_rate))
-        .with_system(update_velocity)
-        .with_system(update_translation.after(update_velocity))
-        .with_system(update_quadtree.after(update_translation))
+        .with_system(apply_kinematics)
+        .with_system(update_quadtree.after(apply_kinematics))
+        .with_system(avoid_nearby_boids.after(update_quadtree))
 }
