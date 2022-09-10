@@ -1,4 +1,4 @@
-use std::ops::AddAssign;
+use std::{ops::AddAssign};
 
 use bevy::sprite::Rect;
 
@@ -121,10 +121,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
     }
 
     pub fn is_leaf(&self) -> bool {
-        match self.children {
-            Some(_) => false,
-            None => true,
-        }
+        self.children.is_none()
     }
 
     pub fn clean_children(&mut self) {
@@ -231,6 +228,29 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
             }
         }
         None
+    }
+
+    pub fn get_all_descendant_values(&self) -> Option<Vec<&T>> {
+        if self.values.len() == 0 && self.is_leaf() {
+            return None;
+        }
+        let mut descendents = vec![];
+        if self.is_leaf() {
+            for value in &self.values {
+                descendents.push(value);
+            }
+            return Some(descendents);
+        }
+        if let Some(children) = &self.children {
+            for child in children.iter() {
+                if let Some(child_descendents) = child.get_all_descendant_values() {
+                    for d in child_descendents {
+                        descendents.push(d);
+                    }
+                }
+            }
+        }
+        Some(descendents)
     }
 
     pub fn delete(&mut self, value: &T) -> Option<T> {

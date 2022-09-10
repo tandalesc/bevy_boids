@@ -10,12 +10,15 @@ use super::{
 /* Public Functions */
 
 pub fn spawn_boids(mut commands: Commands, mut quadtree: ResMut<EntityQuadtree>) {
-    let scale = Vec3::new(5., 5., 0.);
-    // create 400 boids
-    for x_i32 in 0..50 {
-        for y_i32 in 0..50 {
-            let x = (x_i32 as f32) * 10. - 100.;
-            let y = (y_i32 as f32) * 10. - 100.;
+    let scale = Vec3::new(3.5, 3.5, 0.);
+    let count = (50, 50);
+    let spacing = (15., 10.);
+    // create (count.0 * count.1) boids
+    for x_i32 in 0..count.0 {
+        for y_i32 in 0..count.1 {
+            // center boids on screen
+            let x = (x_i32 as f32) * spacing.0 - count.0 as f32/2. * spacing.0;
+            let y = (y_i32 as f32) * spacing.1 - count.1 as f32/2. * spacing.1;
             let translation = Vec3::new(x, y, 0.);
             let rect = Rect {
                 min: Vec2::new(x, y),
