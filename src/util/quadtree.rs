@@ -32,6 +32,7 @@ pub struct QuadtreeStats {
 }
 
 impl QuadtreeStats {
+    // calcuates common statistics about a quadtree
     pub fn calculate<T: QuadtreeValue>(quadtree: &Quadtree<T>) -> QuadtreeStats {
         // functions
         let count_children_fn: fn(&QuadtreeNode<T>) -> usize = |node| match node.children {
@@ -142,6 +143,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         }
     }
 
+    // loop through self and all descendents, run aggregation function and return summed result
     pub fn aggregate_statistic<AggT: AddAssign<AggT>, AggFn: Fn(&QuadtreeNode<T>) -> AggT>(
         &self,
         agg_func: &AggFn,
@@ -155,6 +157,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         return agg_value;
     }
 
+    // add value to self if room, otherwise propagate to children, fall back to self if needed
     pub fn add(&mut self, value: T) {
         if self.is_leaf() {
             if self.depth >= MAX_DEPTH || self.values.len() < THRESHOLD {
@@ -182,6 +185,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         self.values.contains(value)
     }
 
+    // helper function to determine if one or more children can hold this rect entirely
     pub fn children_contain_rect(&self, rect: &Rect) -> bool {
         if let Some(boxed_children) = &self.children {
             for child in boxed_children.iter() {
