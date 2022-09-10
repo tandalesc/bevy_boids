@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use crate::util::quadtree::QuadtreeStats;
+use crate::util::{
+    quadtree::{QuadtreeStats, QuadtreeValue},
+    rect::magnify_rect,
+};
 
 use super::{
     components::{Boid, Velocity},
@@ -43,9 +46,10 @@ pub fn avoid_nearby_boids(
         let my_value = EntityWrapper::new(entity, transform);
         let my_diag = my_value.rect.max - my_value.rect.min;
         let my_midpoint = my_value.rect.min + my_diag / 2.;
+        let detection_rect = magnify_rect(my_value.get_rect(), Vec2::ONE * 5.);
         // find other nearby boids using quadtree lookup and calculate velocity_correction
         let mut velocity_correction = Vec3::new(0., 0., 0.);
-        if let Some(node) = quadtree.query_value(&my_value) {
+        if let Some(node) = quadtree.query_rect(&detection_rect) {
             let num_values = node.values.len();
             // loop through nearby boids and sum up velocity_correction
             for value in &node.values {

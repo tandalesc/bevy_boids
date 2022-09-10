@@ -31,12 +31,21 @@ pub fn partition_rect(rect: &Rect) -> [Rect; 4] {
 }
 
 pub fn transform_to_rect(transform: &Transform) -> Rect {
-    let new_min = Vec2::new(transform.translation.x, transform.translation.y);
-    let new_max = new_min + Vec2::new(transform.scale.x, transform.scale.y);
-    Rect {
-        min: new_min,
-        max: new_max,
-    }
+    let min = Vec2::new(transform.translation.x, transform.translation.y);
+    let max = min + Vec2::new(transform.scale.x, transform.scale.y);
+    Rect { min, max }
+}
+
+pub fn magnify_rect(rect: &Rect, scale_factor: Vec2) -> Rect {
+    let current_scale = Vec2::new(rect.width(), rect.height());
+    let mid_point = rect.min + current_scale / 2.;
+    let new_scale = Vec2::new(
+        current_scale.x * scale_factor.x,
+        current_scale.y * scale_factor.y,
+    );
+    let min = mid_point - new_scale / 2.;
+    let max = mid_point + new_scale / 2.;
+    Rect { min, max }
 }
 
 pub fn rect_contains_point(rect: &Rect, point: &Vec2) -> bool {
