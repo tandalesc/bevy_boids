@@ -7,8 +7,10 @@ use crate::util::{
 
 use super::{
     components::{Boid, Velocity},
-    resources::{EntityQuadtree, EntityWrapper},
+    resources::{EntityQuadtree, EntityWrapper}, setup::BOID_SCALE,
 };
+
+const EPS: f32 = 0.0000001;
 
 pub fn apply_kinematics(
     time: Res<Time>,
@@ -37,7 +39,7 @@ pub fn update_quadtree(
         }
     });
     quadtree.clean_structure();
-    QuadtreeStats::calculate(&quadtree).print();
+    // QuadtreeStats::calculate(&quadtree).print();
 }
 
 pub fn avoid_nearby_boids(
@@ -66,11 +68,11 @@ pub fn avoid_nearby_boids(
                         let distance = midpoint.distance(my_midpoint.clone());
                         let direction_away =
                             (midpoint - my_midpoint).normalize_or_zero().extend(0.);
-                        velocity_correction += direction_away / (1. + 0.1 * distance.exp());
+                        velocity_correction += 2. * direction_away / (1. + 0.1 * distance.exp());
                     }
                 }
                 // only apply velocity_correction if not NaN and above threshold
-                if velocity_correction.length_squared() > 0.0000001 {
+                if velocity_correction.length_squared() > EPS {
                     velocity.0 += 2. * velocity_correction;
                 }
             }
@@ -95,18 +97,18 @@ pub fn avoid_screen_edges(
     let bottom_edge_y = -window_size.y / 2.0;
     velocity_query.par_for_each_mut(200, |(mut velocity, transform)| {
         let loc = transform.translation;
-        let distance_to_left = (loc.x - left_edge_x).abs();
-        let distance_to_right = (loc.x - right_edge_x).abs();
-        let distance_to_top = (loc.y - top_edge_y).abs();
-        let distance_to_bottom = (loc.y - bottom_edge_y).abs();
+        let distance_to_left = (loc.x - BOID_SCALE.x - left_edge_x).abs();
+        let distance_to_right = (loc.x + BOID_SCALE.x - right_edge_x).abs();
+        let distance_to_top = (loc.y + BOID_SCALE.x - top_edge_y).abs();
+        let distance_to_bottom = (loc.y - BOID_SCALE.x - bottom_edge_y).abs();
         let force_vec = Vec2::X / (1. + 0.1 * distance_to_left.exp())
             + Vec2::NEG_X / (1. + 0.1 * distance_to_right.exp())
             + Vec2::NEG_Y / (1. + 0.1 * distance_to_top.exp())
             + Vec2::Y / (1. + 0.1 * distance_to_bottom.exp());
-        let correction_direction = force_vec.normalize_or_zero().extend(0.);
+        let correction = 2. * force_vec.extend(0.);
         // only apply velocity_correction if not NaN and above threshold
-        if correction_direction.length_squared() > 0.0000001 {
-            velocity.0 += correction_direction;
+        if correction.length_squared() > EPS {
+            velocity.0 += 2. * correction;
         }
     });
 }
