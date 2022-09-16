@@ -7,32 +7,41 @@ use super::{
     resources::{EntityQuadtree, EntityWrapper},
 };
 
+pub const BOID_SCALE: Vec2 = Vec2::new(3.5, 3.5);
+pub const BOID_COUNT: IVec2 = IVec2::new(50, 50);
+pub const BOID_SPAWN_SPACING: Vec2 = Vec2::new(15., 10.);
+pub const BOID_SPAWN_OFFSET: Vec2 = Vec2::new(
+    BOID_COUNT.x as f32 * BOID_SPAWN_SPACING.x / 2.,
+    BOID_COUNT.y as f32 * BOID_SPAWN_SPACING.y / 2.,
+);
+
 /* Public Functions */
 
 pub fn spawn_boids(mut commands: Commands, mut quadtree: ResMut<EntityQuadtree>) {
-    let scale = Vec3::new(3.5, 3.5, 0.);
-    let count = (50, 50);
-    let spacing = (15., 10.);
-    // create (count.0 * count.1) boids
-    for x_i32 in 0..count.0 {
-        for y_i32 in 0..count.1 {
+    // create (count.x * count.y) boids
+    for x_i32 in 0..BOID_COUNT.x {
+        for y_i32 in 0..BOID_COUNT.y {
             // center boids on screen
-            let x = (x_i32 as f32) * spacing.0 - count.0 as f32 / 2. * spacing.0;
-            let y = (y_i32 as f32) * spacing.1 - count.1 as f32 / 2. * spacing.1;
-            let translation = Vec3::new(x, y, 0.);
-            let rect = Rect {
-                min: Vec2::new(x, y),
-                max: Vec2::new(x + scale.x, y + scale.y),
-            };
+            let translation = Vec2::new(
+                (x_i32 as f32) * BOID_SPAWN_SPACING.x - BOID_SPAWN_OFFSET.x,
+                (y_i32 as f32) * BOID_SPAWN_SPACING.y - BOID_SPAWN_OFFSET.y,
+            );
             //spawn boid
             let entity = commands
                 .spawn()
                 .insert(Boid)
                 .insert(Velocity(Vec3::NEG_X * 8.))
-                .insert_bundle(create_boid_sprite(translation, scale.clone()))
                 .insert(Collider)
+                .insert_bundle(create_boid_sprite(
+                    translation.extend(0.),
+                    BOID_SCALE.extend(0.),
+                ))
                 .id();
             //add to quadtree
+            let rect = Rect {
+                min: translation.clone(),
+                max: translation + BOID_SCALE,
+            };
             quadtree.add(EntityWrapper { entity, rect });
         }
     }
