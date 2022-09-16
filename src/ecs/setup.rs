@@ -1,6 +1,6 @@
 use bevy::{prelude::*, sprite::Rect};
 
-use crate::util::quadtree::QuadtreeStats;
+use crate::util::quadtree::quadtree_stats::QuadtreeStats;
 
 use super::{
     components::{Boid, Collider, Velocity},

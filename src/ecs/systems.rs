@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::util::{
-    quadtree::{QuadtreeStats, QuadtreeValue},
+    quadtree::{quadtree_stats::QuadtreeStats, quadtree_value::QuadtreeValue},
     rect::magnify_rect,
 };
 

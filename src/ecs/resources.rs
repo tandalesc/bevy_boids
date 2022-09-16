@@ -4,7 +4,7 @@ use bevy::{
 };
 
 use crate::util::{
-    quadtree::{Quadtree, QuadtreeValue},
+    quadtree::{quadtree::Quadtree, quadtree_value::QuadtreeValue},
     rect::transform_to_rect,
 };
 
