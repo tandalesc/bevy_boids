@@ -28,9 +28,9 @@ pub fn spawn_boids(mut commands: Commands, mut quadtree: ResMut<EntityQuadtree>)
                 (x_i32 as f32) * BOID_SPAWN_SPACING.x - BOID_SPAWN_OFFSET.x,
                 (y_i32 as f32) * BOID_SPAWN_SPACING.y - BOID_SPAWN_OFFSET.y,
             );
-            let velocity = Vec2::new(rng.gen_range(-1f32..1f32), rng.gen_range(-1f32..1f32))
-                .extend(0.)
+            let velocity = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0))
                 .normalize_or_zero()
+                .extend(0.)
                 * 100.;
             //spawn boid
             let entity = commands
