@@ -10,8 +10,8 @@ pub struct Kinematics {
 }
 
 impl Kinematics {
-    pub fn integrate(&self, t: f32, v0: Vec3) -> Vec3 {
-        v0 + self.velocity * t + self.acceleration * t * t / 2.
+    pub fn integrate(&self, t: f32) -> Vec3 {
+        self.velocity * t + self.acceleration * t * t / 2.
     }
 }
 

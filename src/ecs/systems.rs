@@ -18,14 +18,18 @@ const BOID_DETECTION_RADIUS: f32 = 3.;
 const BOID_GROUP_APPROACH_RADIUS: f32 = 5.;
 const BOID_SPEED: f32 = 100.;
 
+const THREADS_SMALL: usize = 4;
+const THREADS_MEDIUM: usize = 8;
+const THREADS_LARGE: usize = 16;
+
 pub fn apply_kinematics(mut boid_query: Query<(&Kinematics, &mut Transform), With<Boid>>) {
     let h = DELTA_TIME_FIXED;
-    boid_query.par_for_each_mut(16, |(kinematics, mut transform)| {
+    boid_query.par_for_each_mut(THREADS_MEDIUM, |(kinematics, mut transform)| {
         let v0 = kinematics.velocity;
-        let k1 = kinematics.integrate(0., v0);
-        let k2 = kinematics.integrate(h / 2., v0 + k1 / 2.);
-        let k3 = kinematics.integrate(h / 2., v0 + k2 / 2.);
-        let k4 = kinematics.integrate(h, v0 + k3);
+        let k1 = kinematics.integrate(0.) + v0;
+        let k2 = kinematics.integrate(h / 2.) + (v0 + k1 / 2.);
+        let k3 = kinematics.integrate(h / 2.) + (v0 + k2 / 2.);
+        let k4 = kinematics.integrate(h) + (v0 + k3);
         let dy = h * (k1 + (2. * k2) + (2. * k3) + k4) / 6.;
         transform.translation += dy;
     });
@@ -50,10 +54,10 @@ pub fn update_quadtree(
 }
 
 pub fn approach_nearby_boid_groups(
-    mut velocity_query: Query<(&mut Kinematics, Entity, &Transform), With<Boid>>,
+    mut kinematics_query: Query<(&mut Kinematics, Entity, &Transform), With<Boid>>,
     quadtree: Res<EntityQuadtree>,
 ) {
-    velocity_query.par_for_each_mut(4, |(mut kinematics, entity, transform)| {
+    kinematics_query.par_for_each_mut(THREADS_SMALL, |(mut kinematics, entity, transform)| {
         let my_value = EntityWrapper::new(entity, &kinematics.velocity, transform);
         let detection_rect =
             magnify_rect(my_value.get_rect(), Vec2::ONE * BOID_GROUP_APPROACH_RADIUS);
@@ -72,7 +76,7 @@ pub fn approach_nearby_boid_groups(
                         average_velocity += value.velocity;
                     }
                     average_velocity /= num_values as f32;
-                    // only apply velocity_correction if not NaN and above threshold
+                    // only apply correction if not NaN and above threshold
                     if average_velocity.length_squared() > EPS {
                         let current_dir = kinematics.velocity.normalize_or_zero();
                         let force_direction = average_velocity.normalize_or_zero();
@@ -86,10 +90,10 @@ pub fn approach_nearby_boid_groups(
 }
 
 pub fn avoid_nearby_boids(
-    mut velocity_query: Query<(&mut Kinematics, Entity, &Transform), With<Boid>>,
+    mut kinematics_query: Query<(&mut Kinematics, Entity, &Transform), With<Boid>>,
     quadtree: Res<EntityQuadtree>,
 ) {
-    velocity_query.par_for_each_mut(4, |(mut kinematics, entity, transform)| {
+    kinematics_query.par_for_each_mut(THREADS_SMALL, |(mut kinematics, entity, transform)| {
         let my_value = EntityWrapper::new(entity, &kinematics.velocity, transform);
         let my_diag = my_value.rect.max - my_value.rect.min;
         let my_midpoint = my_value.rect.min + my_diag / 2.;
@@ -115,7 +119,7 @@ pub fn avoid_nearby_boids(
                                 + (1. / BOID_SCALE.length())
                                     * (distance - BOID_SCALE.length()).exp());
                     }
-                    // only apply velocity_correction if not NaN and above threshold
+                    // only apply correction if not NaN and above threshold
                     if force_vec.length_squared() > EPS {
                         let current_dir = kinematics.velocity.normalize_or_zero();
                         let force_direction = force_vec.normalize_or_zero().extend(0.);
@@ -129,7 +133,7 @@ pub fn avoid_nearby_boids(
 }
 
 pub fn avoid_screen_edges(
-    mut velocity_query: Query<(&mut Kinematics, &Transform), With<Boid>>,
+    mut kinematics_query: Query<(&mut Kinematics, &Transform), With<Boid>>,
     windows: Res<Windows>,
 ) {
     let mut window_size = Vec2::new(0., 0.);
@@ -143,10 +147,8 @@ pub fn avoid_screen_edges(
     let right_edge_x = window_size.x / 2.0;
     let top_edge_y = window_size.y / 2.0;
     let bottom_edge_y = -window_size.y / 2.0;
-    velocity_query.par_for_each_mut(8, |(mut kinematics, transform)| {
+    kinematics_query.par_for_each_mut(THREADS_LARGE, |(mut kinematics, transform)| {
         let loc = transform.translation;
-        let mut new_velocity = kinematics.velocity.clone();
-        let mut update_velocity = false;
         // calculate distances
         let distance_to_left = (loc.x - left_edge_x).abs();
         let distance_to_right = (loc.x - right_edge_x).abs();
@@ -155,6 +157,9 @@ pub fn avoid_screen_edges(
         // bounce if too close to screen edge
         let x_margin = BOID_SCALE.x * 3.;
         let y_margin = BOID_SCALE.y * 3.;
+        // calculate new velocity
+        let mut update_velocity = false;
+        let mut new_velocity = kinematics.velocity.clone();
         if distance_to_left < x_margin || distance_to_right < x_margin {
             new_velocity.x *= -1.;
             update_velocity = true;
@@ -163,7 +168,7 @@ pub fn avoid_screen_edges(
             new_velocity.y *= -1.;
             update_velocity = true;
         }
-        // only apply velocity_correction if not NaN and above threshold
+        // only apply velocity if updated
         if update_velocity {
             kinematics.velocity = new_velocity;
         }
