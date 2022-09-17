@@ -16,7 +16,7 @@ pub fn apply_kinematics(
     time: Res<Time>,
     mut boid_query: Query<(&Velocity, &mut Transform), With<Boid>>,
 ) {
-    boid_query.par_for_each_mut(200, |(velocity, mut transform)| {
+    boid_query.par_for_each_mut(32, |(velocity, mut transform)| {
         // euler's method
         // TODO: implement RK4
         let dv = velocity.0 * time.delta_seconds();
@@ -46,7 +46,7 @@ pub fn avoid_nearby_boids(
     mut velocity_query: Query<(&mut Velocity, Entity, &Transform), With<Boid>>,
     quadtree: Res<EntityQuadtree>,
 ) {
-    velocity_query.par_for_each_mut(10, |(mut velocity, entity, transform)| {
+    velocity_query.par_for_each_mut(16, |(mut velocity, entity, transform)| {
         let my_value = EntityWrapper::new(entity, transform);
         let my_diag = my_value.rect.max - my_value.rect.min;
         let my_midpoint = my_value.rect.min + my_diag / 2.;
@@ -95,7 +95,7 @@ pub fn avoid_screen_edges(
     let right_edge_x = window_size.x / 2.0;
     let top_edge_y = window_size.y / 2.0;
     let bottom_edge_y = -window_size.y / 2.0;
-    velocity_query.par_for_each_mut(200, |(mut velocity, transform)| {
+    velocity_query.par_for_each_mut(16, |(mut velocity, transform)| {
         let loc = transform.translation;
         let distance_to_left = (loc.x - BOID_SCALE.x - left_edge_x).abs();
         let distance_to_right = (loc.x + BOID_SCALE.x - right_edge_x).abs();
