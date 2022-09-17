@@ -50,7 +50,7 @@ pub fn update_quadtree(
         }
     });
     quadtree.clean_structure();
-    // QuadtreeStats::calculate(&quadtree).print();
+    QuadtreeStats::calculate(&quadtree).print();
 }
 
 pub fn approach_nearby_boid_groups(
@@ -68,12 +68,11 @@ pub fn approach_nearby_boid_groups(
                 // loop through nearby boids and sum up velocity_correction
                 if num_values > 1 {
                     let mut average_velocity = Vec3::ZERO;
-                    for value in &descendent_values {
+                    for value in descendent_values {
                         //skip self if found
-                        if value.entity == entity {
-                            continue;
+                        if value.entity != entity {
+                            average_velocity += value.velocity;
                         }
-                        average_velocity += value.velocity;
                     }
                     average_velocity /= num_values as f32;
                     // only apply correction if not NaN and above threshold
@@ -148,23 +147,21 @@ pub fn avoid_screen_edges(
     let top_edge_y = window_size.y / 2.0;
     let bottom_edge_y = -window_size.y / 2.0;
     kinematics_query.par_for_each_mut(THREADS_LARGE, |(mut kinematics, transform)| {
-        let loc = transform.translation;
+        let margin = BOID_SCALE / 2.;
+        let loc = transform.translation + margin.extend(0.);
         // calculate distances
-        let distance_to_left = (loc.x - left_edge_x).abs();
-        let distance_to_right = (loc.x - right_edge_x).abs();
-        let distance_to_top = (loc.y - top_edge_y).abs();
-        let distance_to_bottom = (loc.y - bottom_edge_y).abs();
+        let distance_to_left = loc.x - left_edge_x - margin.x;
+        let distance_to_right = right_edge_x - loc.x - margin.x;
+        let distance_to_top = top_edge_y - loc.y - margin.y;
+        let distance_to_bottom = loc.y - bottom_edge_y - margin.y;
         // bounce if too close to screen edge
-        let x_margin = BOID_SCALE.x * 3.;
-        let y_margin = BOID_SCALE.y * 3.;
-        // calculate new velocity
         let mut update_velocity = false;
         let mut new_velocity = kinematics.velocity.clone();
-        if distance_to_left < x_margin || distance_to_right < x_margin {
+        if distance_to_left < EPS || distance_to_right < EPS {
             new_velocity.x *= -1.;
             update_velocity = true;
         }
-        if distance_to_top < y_margin || distance_to_bottom < y_margin {
+        if distance_to_top < EPS || distance_to_bottom < EPS {
             new_velocity.y *= -1.;
             update_velocity = true;
         }
@@ -195,14 +192,14 @@ pub fn wrap_screen_edges(
         let loc = transform.translation + margin.extend(0.);
         // calculate distances
         let distance_to_left = loc.x - left_edge_x - margin.x;
-        let distance_to_right = right_edge_x - loc.x + margin.x;
-        let distance_to_top = top_edge_y - loc.y + margin.y;
+        let distance_to_right = right_edge_x - loc.x - margin.x;
+        let distance_to_top = top_edge_y - loc.y - margin.y;
         let distance_to_bottom = loc.y - bottom_edge_y - margin.y;
         // wrap if too close to screen edge
-        if distance_to_left < 0. || distance_to_right < 0. {
+        if distance_to_left < EPS || distance_to_right < EPS {
             transform.translation.x *= -1.;
         }
-        if distance_to_top < 0. || distance_to_bottom < 0. {
+        if distance_to_top < EPS || distance_to_bottom < EPS {
             transform.translation.y *= -1.;
         }
     });
