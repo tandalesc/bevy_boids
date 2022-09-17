@@ -38,7 +38,7 @@ pub fn run_ecs_application() {
 */
 fn physics_system_set(physics_frame_rate: f64) -> SystemSet {
     SystemSet::new()
-        .with_run_criteria(FixedTimestep::step(1. / physics_frame_rate))
+        .with_run_criteria(FixedTimestep::steps_per_second(physics_frame_rate))
         .with_system(apply_kinematics)
         .with_system(update_quadtree.after(apply_kinematics))
         .with_system(avoid_nearby_boids.after(update_quadtree))
