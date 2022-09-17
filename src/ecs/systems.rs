@@ -153,8 +153,8 @@ pub fn avoid_screen_edges(
         let distance_to_top = (loc.y - top_edge_y).abs();
         let distance_to_bottom = (loc.y - bottom_edge_y).abs();
         // bounce if too close to screen edge
-        let x_margin = BOID_SCALE.x * 2.;
-        let y_margin = BOID_SCALE.y * 2.;
+        let x_margin = BOID_SCALE.x * 3.;
+        let y_margin = BOID_SCALE.y * 3.;
         if distance_to_left < x_margin || distance_to_right < x_margin {
             new_velocity.x *= -1.;
             update_velocity = true;
