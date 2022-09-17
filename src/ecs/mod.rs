@@ -15,7 +15,7 @@ const QUADTREE_SIZE: Rect = Rect {
     max: Vec2::new(1000., 1000.),
 };
 const BACKGROUND_COLOR: Color = Color::rgb(0.1, 0.1, 0.1);
-const PHYSICS_FRAME_RATE: f64 = 60.;
+pub const PHYSICS_FRAME_RATE: f64 = 60.;
 
 /*
     These systems represent game logic.

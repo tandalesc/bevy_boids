@@ -7,20 +7,33 @@ use crate::util::{
 
 use super::{
     components::{Boid, Velocity},
-    resources::{EntityQuadtree, EntityWrapper}, setup::BOID_SCALE,
+    resources::{EntityQuadtree, EntityWrapper},
+    setup::BOID_SCALE,
+    PHYSICS_FRAME_RATE,
 };
 
 const EPS: f32 = 0.0000001;
+const DELTA_TIME_FIXED: f32 = 1. / PHYSICS_FRAME_RATE as f32;
 
 pub fn apply_kinematics(
-    time: Res<Time>,
+    // time: Res<Time>,
     mut boid_query: Query<(&Velocity, &mut Transform), With<Boid>>,
 ) {
     boid_query.par_for_each_mut(32, |(velocity, mut transform)| {
         // euler's method
-        // TODO: implement RK4
-        let dv = velocity.0 * time.delta_seconds();
-        transform.translation += dv;
+        // let dv = velocity.0 * time.delta_seconds();
+        // transform.translation += dv;
+
+        // RK4
+        let y0 = transform.translation;
+        let h = DELTA_TIME_FIXED;
+        let k1 = velocity.0;
+        let k2 = ((y0 + k1 * (h / 2.)) - y0) / (h / 2.);
+        let k3 = ((y0 + k2 * (h / 2.)) - y0) / (h / 2.);
+        let k4 = ((y0 + k3 * h) - y0) / h;
+
+        let dy = (k1 + (2. * k2) + (2. * k3) + k4) * h / 6.;
+        transform.translation += dy;
     });
 }
 
