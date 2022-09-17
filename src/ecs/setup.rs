@@ -4,7 +4,7 @@ use rand::prelude::*;
 use crate::util::quadtree::quadtree_stats::QuadtreeStats;
 
 use super::{
-    components::{Boid, Collider, Velocity},
+    components::{Boid, Collider, Kinematics},
     resources::{EntityQuadtree, EntityWrapper},
 };
 
@@ -28,15 +28,18 @@ pub fn spawn_boids(mut commands: Commands, mut quadtree: ResMut<EntityQuadtree>)
                 (x_i32 as f32) * BOID_SPAWN_SPACING.x - BOID_SPAWN_OFFSET.x,
                 (y_i32 as f32) * BOID_SPAWN_SPACING.y - BOID_SPAWN_OFFSET.y,
             );
-            let velocity = Vec2::new(
-                rng.gen_range(-1f32..1f32),
-                rng.gen_range(-1f32..1f32),
-            ).extend(0.).normalize_or_zero() * 100.;
+            let velocity = Vec2::new(rng.gen_range(-1f32..1f32), rng.gen_range(-1f32..1f32))
+                .extend(0.)
+                .normalize_or_zero()
+                * 100.;
             //spawn boid
             let entity = commands
                 .spawn()
                 .insert(Boid)
-                .insert(Velocity(velocity.clone()))
+                .insert(Kinematics {
+                    velocity: velocity.clone(),
+                    acceleration: Vec3::ZERO,
+                })
                 .insert(Collider)
                 .insert_bundle(create_boid_sprite(
                     translation.extend(0.),

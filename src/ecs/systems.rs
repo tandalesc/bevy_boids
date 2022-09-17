@@ -6,7 +6,7 @@ use crate::util::{
 };
 
 use super::{
-    components::{Boid, Velocity},
+    components::{Boid, Kinematics},
     resources::{EntityQuadtree, EntityWrapper},
     setup::BOID_SCALE,
     PHYSICS_FRAME_RATE,
@@ -18,12 +18,12 @@ const BOID_DETECTION_RADIUS: f32 = 2.;
 const BOID_GROUP_APPROACH_RADIUS: f32 = 5.;
 const BOID_SPEED: f32 = 100.;
 
-pub fn apply_kinematics(mut boid_query: Query<(&Velocity, &mut Transform), With<Boid>>) {
-    boid_query.par_for_each_mut(16, |(velocity, mut transform)| {
+pub fn apply_kinematics(mut boid_query: Query<(&Kinematics, &mut Transform), With<Boid>>) {
+    boid_query.par_for_each_mut(16, |(kinematics, mut transform)| {
         // RK4
         let y0 = transform.translation;
         let h = DELTA_TIME_FIXED;
-        let k1 = velocity.0;
+        let k1 = kinematics.velocity;
         let k2 = ((y0 + k1 * (h / 2.)) - y0) / (h / 2.);
         let k3 = ((y0 + k2 * (h / 2.)) - y0) / (h / 2.);
         let k4 = ((y0 + k3 * h) - y0) / h;
@@ -34,12 +34,12 @@ pub fn apply_kinematics(mut boid_query: Query<(&Velocity, &mut Transform), With<
 }
 
 pub fn update_quadtree(
-    entity_query: Query<(Entity, &Velocity, &Transform), With<Boid>>,
+    entity_query: Query<(Entity, &Kinematics, &Transform), With<Boid>>,
     mut quadtree: ResMut<EntityQuadtree>,
 ) {
-    entity_query.for_each(|(entity, velocity, transform)| {
+    entity_query.for_each(|(entity, kinematics, transform)| {
         // quadtrees have relatively fast delete and add operations, so just run that every time
-        let value = EntityWrapper::new(entity, velocity, transform);
+        let value = EntityWrapper::new(entity, &kinematics.velocity, transform);
         if let Some(node) = quadtree.query_rect(value.get_rect()) {
             if !node.contains_value(&value) {
                 quadtree.delete(&value);
@@ -52,11 +52,11 @@ pub fn update_quadtree(
 }
 
 pub fn approach_nearby_boid_groups(
-    mut velocity_query: Query<(&mut Velocity, Entity, &Transform), With<Boid>>,
+    mut velocity_query: Query<(&mut Kinematics, Entity, &Transform), With<Boid>>,
     quadtree: Res<EntityQuadtree>,
 ) {
-    velocity_query.par_for_each_mut(4, |(mut velocity, entity, transform)| {
-        let my_value = EntityWrapper::new(entity, &velocity, transform);
+    velocity_query.par_for_each_mut(4, |(mut kinematics, entity, transform)| {
+        let my_value = EntityWrapper::new(entity, &kinematics.velocity, transform);
         let detection_rect =
             magnify_rect(my_value.get_rect(), Vec2::ONE * BOID_GROUP_APPROACH_RADIUS);
         // find other nearby boids using quadtree lookup and calculate velocity_correction
@@ -76,10 +76,10 @@ pub fn approach_nearby_boid_groups(
                     average_velocity /= num_values as f32;
                     // only apply velocity_correction if not NaN and above threshold
                     if average_velocity.length_squared() > EPS {
-                        let current_dir = velocity.0.normalize_or_zero();
+                        let current_dir = kinematics.velocity.normalize_or_zero();
                         let force_direction = average_velocity.normalize_or_zero();
                         let new_dir = current_dir.lerp(force_direction, 0.015);
-                        velocity.0 = new_dir * BOID_SPEED;
+                        kinematics.velocity = new_dir * BOID_SPEED;
                     }
                 }
             }
@@ -88,11 +88,11 @@ pub fn approach_nearby_boid_groups(
 }
 
 pub fn avoid_nearby_boids(
-    mut velocity_query: Query<(&mut Velocity, Entity, &Transform), With<Boid>>,
+    mut velocity_query: Query<(&mut Kinematics, Entity, &Transform), With<Boid>>,
     quadtree: Res<EntityQuadtree>,
 ) {
-    velocity_query.par_for_each_mut(4, |(mut velocity, entity, transform)| {
-        let my_value = EntityWrapper::new(entity, &velocity, transform);
+    velocity_query.par_for_each_mut(4, |(mut kinematics, entity, transform)| {
+        let my_value = EntityWrapper::new(entity, &kinematics.velocity, transform);
         let my_diag = my_value.rect.max - my_value.rect.min;
         let my_midpoint = my_value.rect.min + my_diag / 2.;
         let detection_rect = magnify_rect(my_value.get_rect(), Vec2::ONE * BOID_DETECTION_RADIUS);
@@ -119,10 +119,10 @@ pub fn avoid_nearby_boids(
                     }
                     // only apply velocity_correction if not NaN and above threshold
                     if force_vec.length_squared() > EPS {
-                        let current_dir = velocity.0.normalize_or_zero();
+                        let current_dir = kinematics.velocity.normalize_or_zero();
                         let force_direction = force_vec.normalize_or_zero().extend(0.);
                         let new_dir = current_dir.lerp(force_direction, 0.03);
-                        velocity.0 = new_dir * BOID_SPEED;
+                        kinematics.velocity = new_dir * BOID_SPEED;
                     }
                 }
             }
@@ -131,7 +131,7 @@ pub fn avoid_nearby_boids(
 }
 
 pub fn avoid_screen_edges(
-    mut velocity_query: Query<(&mut Velocity, &Transform), With<Boid>>,
+    mut velocity_query: Query<(&mut Kinematics, &Transform), With<Boid>>,
     windows: Res<Windows>,
 ) {
     let mut window_size = Vec2::new(0., 0.);
@@ -145,9 +145,9 @@ pub fn avoid_screen_edges(
     let right_edge_x = window_size.x / 2.0;
     let top_edge_y = window_size.y / 2.0;
     let bottom_edge_y = -window_size.y / 2.0;
-    velocity_query.par_for_each_mut(8, |(mut velocity, transform)| {
+    velocity_query.par_for_each_mut(8, |(mut kinematics, transform)| {
         let loc = transform.translation;
-        let mut new_velocity = velocity.clone();
+        let mut new_velocity = kinematics.velocity.clone();
         let mut update_velocity = false;
         // calculate distances
         let distance_to_left = (loc.x - left_edge_x).abs();
@@ -167,7 +167,7 @@ pub fn avoid_screen_edges(
         }
         // only apply velocity_correction if not NaN and above threshold
         if update_velocity {
-            velocity.0 = new_velocity;
+            kinematics.velocity = new_velocity;
         }
     });
 }

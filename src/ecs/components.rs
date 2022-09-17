@@ -3,8 +3,11 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct Boid;
 
-#[derive(Component, Deref, DerefMut)]
-pub struct Velocity(pub Vec3);
+#[derive(Component, Clone)]
+pub struct Kinematics {
+    pub velocity: Vec3,
+    pub acceleration: Vec3,
+}
 
 #[derive(Component)]
 pub struct Collider;
