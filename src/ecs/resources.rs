@@ -1,5 +1,5 @@
 use bevy::{
-    prelude::{Entity, Transform},
+    prelude::{Entity, Transform, Vec3},
     sprite::Rect,
 };
 
@@ -11,12 +11,14 @@ use crate::util::{
 pub struct EntityWrapper {
     pub entity: Entity,
     pub rect: Rect,
+    pub velocity: Vec3,
 }
 
 impl EntityWrapper {
-    pub fn new(entity: Entity, transform: &Transform) -> Self {
+    pub fn new(entity: Entity, velocity: &Vec3, transform: &Transform) -> Self {
         EntityWrapper {
             entity,
+            velocity: velocity.clone(),
             rect: transform_to_rect(transform),
         }
     }

@@ -11,8 +11,8 @@ use self::setup::{setup_camera, spawn_boids};
 use self::systems::{apply_kinematics, avoid_nearby_boids, avoid_screen_edges, update_quadtree, approach_nearby_boid_groups};
 
 const QUADTREE_SIZE: Rect = Rect {
-    min: Vec2::new(-1000., -1000.),
-    max: Vec2::new(1000., 1000.),
+    min: Vec2::new(-3000., -3000.),
+    max: Vec2::new(3000., 3000.),
 };
 const BACKGROUND_COLOR: Color = Color::rgb(0.1, 0.1, 0.1);
 pub const PHYSICS_FRAME_RATE: f64 = 60.;
