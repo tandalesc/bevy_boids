@@ -14,21 +14,19 @@ use super::{
 
 const EPS: f32 = 0.00001;
 const DELTA_TIME_FIXED: f32 = 1. / PHYSICS_FRAME_RATE as f32;
-const BOID_DETECTION_RADIUS: f32 = 2.;
+const BOID_DETECTION_RADIUS: f32 = 3.;
 const BOID_GROUP_APPROACH_RADIUS: f32 = 5.;
 const BOID_SPEED: f32 = 100.;
 
 pub fn apply_kinematics(mut boid_query: Query<(&Kinematics, &mut Transform), With<Boid>>) {
+    let h = DELTA_TIME_FIXED;
     boid_query.par_for_each_mut(16, |(kinematics, mut transform)| {
-        // RK4
-        let y0 = transform.translation;
-        let h = DELTA_TIME_FIXED;
-        let k1 = kinematics.velocity;
-        let k2 = ((y0 + k1 * (h / 2.)) - y0) / (h / 2.);
-        let k3 = ((y0 + k2 * (h / 2.)) - y0) / (h / 2.);
-        let k4 = ((y0 + k3 * h) - y0) / h;
-
-        let dy = (k1 + (2. * k2) + (2. * k3) + k4) * h / 6.;
+        let v0 = kinematics.velocity;
+        let k1 = kinematics.integrate(0., v0);
+        let k2 = kinematics.integrate(h / 2., v0 + k1 / 2.);
+        let k3 = kinematics.integrate(h / 2., v0 + k2 / 2.);
+        let k4 = kinematics.integrate(h, v0 + k3);
+        let dy = h * (k1 + (2. * k2) + (2. * k3) + k4) / 6.;
         transform.translation += dy;
     });
 }
