@@ -15,7 +15,7 @@ use super::{
 const EPS: f32 = 0.00001;
 const DELTA_TIME_FIXED: f32 = 1. / PHYSICS_FRAME_RATE as f32;
 const BOID_DETECTION_RADIUS: f32 = 3.;
-const BOID_GROUP_APPROACH_RADIUS: f32 = 5.;
+const BOID_GROUP_APPROACH_RADIUS: f32 = 3.;
 const BOID_SPEED: f32 = 100.;
 
 const THREADS_SMALL: usize = 4;
@@ -171,6 +171,39 @@ pub fn avoid_screen_edges(
         // only apply velocity if updated
         if update_velocity {
             kinematics.velocity = new_velocity;
+        }
+    });
+}
+
+pub fn wrap_screen_edges(
+    mut kinematics_query: Query<&mut Transform, With<Boid>>,
+    windows: Res<Windows>,
+) {
+    let mut window_size = Vec2::new(0., 0.);
+    if let Some(window) = windows.get_primary() {
+        window_size.x = window.width();
+        window_size.y = window.height();
+    } else {
+        return;
+    }
+    let left_edge_x = -window_size.x / 2.0;
+    let right_edge_x = window_size.x / 2.0;
+    let top_edge_y = window_size.y / 2.0;
+    let bottom_edge_y = -window_size.y / 2.0;
+    kinematics_query.par_for_each_mut(THREADS_LARGE, |mut transform| {
+        let margin = BOID_SCALE / 2.;
+        let loc = transform.translation + margin.extend(0.);
+        // calculate distances
+        let distance_to_left = loc.x - left_edge_x - margin.x;
+        let distance_to_right = right_edge_x - loc.x + margin.x;
+        let distance_to_top = top_edge_y - loc.y + margin.y;
+        let distance_to_bottom = loc.y - bottom_edge_y - margin.y;
+        // wrap if too close to screen edge
+        if distance_to_left < 0. || distance_to_right < 0. {
+            transform.translation.x *= -1.;
+        }
+        if distance_to_top < 0. || distance_to_bottom < 0. {
+            transform.translation.y *= -1.;
         }
     });
 }
