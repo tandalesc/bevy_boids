@@ -14,16 +14,15 @@ use super::{
 
 const EPS: f32 = 0.0000001;
 const DELTA_TIME_FIXED: f32 = 1. / PHYSICS_FRAME_RATE as f32;
+const BOID_DETECTION_RADIUS: f32 = 7.5;
+const BOID_AVOIDANCE_FORCE: f32 = 12.;
+const BOID_WALL_AVOIDANCE_FORCE: f32 = 24.;
 
 pub fn apply_kinematics(
     // time: Res<Time>,
     mut boid_query: Query<(&Velocity, &mut Transform), With<Boid>>,
 ) {
     boid_query.par_for_each_mut(32, |(velocity, mut transform)| {
-        // euler's method
-        // let dv = velocity.0 * time.delta_seconds();
-        // transform.translation += dv;
-
         // RK4
         let y0 = transform.translation;
         let h = DELTA_TIME_FIXED;
@@ -63,7 +62,7 @@ pub fn avoid_nearby_boids(
         let my_value = EntityWrapper::new(entity, transform);
         let my_diag = my_value.rect.max - my_value.rect.min;
         let my_midpoint = my_value.rect.min + my_diag / 2.;
-        let detection_rect = magnify_rect(my_value.get_rect(), Vec2::ONE * 5.5);
+        let detection_rect = magnify_rect(my_value.get_rect(), Vec2::ONE * BOID_DETECTION_RADIUS);
         // find other nearby boids using quadtree lookup and calculate velocity_correction
         if let Some(node) = quadtree.query_rect(&detection_rect) {
             if let Some(descendent_values) = node.get_all_descendant_values() {
@@ -81,12 +80,12 @@ pub fn avoid_nearby_boids(
                         let distance = midpoint.distance(my_midpoint.clone());
                         let direction_away =
                             (midpoint - my_midpoint).normalize_or_zero().extend(0.);
-                        velocity_correction += 2. * direction_away / (1. + 0.1 * distance.exp());
+                        velocity_correction += direction_away / (1. + 0.1 * distance.exp());
                     }
                 }
                 // only apply velocity_correction if not NaN and above threshold
                 if velocity_correction.length_squared() > EPS {
-                    velocity.0 += 2. * velocity_correction;
+                    velocity.0 += BOID_AVOIDANCE_FORCE * velocity_correction;
                 }
             }
         }
@@ -118,10 +117,9 @@ pub fn avoid_screen_edges(
             + Vec2::NEG_X / (1. + 0.1 * distance_to_right.exp())
             + Vec2::NEG_Y / (1. + 0.1 * distance_to_top.exp())
             + Vec2::Y / (1. + 0.1 * distance_to_bottom.exp());
-        let correction = 2. * force_vec.extend(0.);
         // only apply velocity_correction if not NaN and above threshold
-        if correction.length_squared() > EPS {
-            velocity.0 += 2. * correction;
+        if force_vec.length_squared() > EPS {
+            velocity.0 += BOID_WALL_AVOIDANCE_FORCE * force_vec.extend(0.);
         }
     });
 }
