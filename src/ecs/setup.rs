@@ -8,7 +8,7 @@ use super::{
     resources::{EntityQuadtree, EntityWrapper},
 };
 
-pub const BOID_SCALE: Vec2 = Vec2::new(3., 3.);
+pub const BOID_SCALE: Vec2 = Vec2::new(2.5, 2.5);
 pub const BOID_COUNT: IVec2 = IVec2::new(50, 50);
 pub const BOID_SPAWN_SPACING: Vec2 = Vec2::new(12., 6.);
 pub const BOID_SPAWN_OFFSET: Vec2 = Vec2::new(
