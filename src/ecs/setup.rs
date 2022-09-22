@@ -9,7 +9,7 @@ use super::{
 };
 
 pub const BOID_SCALE: Vec2 = Vec2::new(2.5, 2.5);
-pub const BOID_COUNT: IVec2 = IVec2::new(60, 60);
+pub const BOID_COUNT: IVec2 = IVec2::new(75, 60);
 pub const BOID_SPAWN_SPACING: Vec2 = Vec2::new(12., 6.);
 pub const BOID_SPAWN_OFFSET: Vec2 = Vec2::new(
     BOID_COUNT.x as f32 * BOID_SPAWN_SPACING.x / 2.,

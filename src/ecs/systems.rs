@@ -48,7 +48,7 @@ pub fn update_quadtree(
             }
         }
     });
-    QuadtreeStats::calculate(&quadtree).print();
+    // QuadtreeStats::calculate(&quadtree).print();
 }
 
 pub fn approach_nearby_boid_groups(
