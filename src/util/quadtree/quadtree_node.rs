@@ -1,6 +1,9 @@
 use std::ops::AddAssign;
 
-use bevy::sprite::Rect;
+use bevy::{
+    sprite::Rect,
+    utils::{hashbrown::hash_set::Iter, HashSet},
+};
 
 use crate::util::rect::{partition_rect, rect_contains_rect};
 
@@ -10,7 +13,7 @@ pub struct QuadtreeNode<T> {
     pub rect: Rect,
     pub depth: usize,
     pub children: Option<Box<[QuadtreeNode<T>; 4]>>,
-    pub values: Vec<T>,
+    pub values: HashSet<T>,
 }
 
 impl<T: QuadtreeValue> QuadtreeNode<T> {
@@ -19,7 +22,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
             rect,
             depth,
             children: None,
-            values: vec![],
+            values: HashSet::new(),
         }
     }
 
@@ -61,7 +64,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
     pub fn add(&mut self, value: T) {
         if self.is_leaf() {
             if self.depth >= MAX_DEPTH || self.values.len() < THRESHOLD {
-                self.values.push(value);
+                self.values.insert(value);
             } else {
                 self.create_children();
                 self.distribute_values();
@@ -72,7 +75,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
                     child.add(value);
                 }
             } else {
-                self.values.push(value);
+                self.values.insert(value);
             }
         }
     }
@@ -87,14 +90,15 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
 
     // helper function to determine if one or more children can hold this rect entirely
     pub fn children_contain_rect(&self, rect: &Rect) -> bool {
-        if let Some(boxed_children) = &self.children {
-            for child in boxed_children.iter() {
-                if child.contains_rect(rect) {
-                    return true;
-                }
-            }
+        if self.is_leaf() {
+            false
+        } else {
+            self.children
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|child| child.contains_rect(rect))
         }
-        false
     }
 
     pub fn find_value(&self, value: &T) -> Option<&QuadtreeNode<T>> {
@@ -133,38 +137,37 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         None
     }
 
-    pub fn get_all_descendant_values(&self) -> Option<Vec<&T>> {
-        if self.values.len() == 0 && self.is_leaf() {
-            return None;
-        }
-        let mut descendents = vec![];
+    pub fn get_all_descendant_values(&self) -> Box<dyn Iterator<Item = &T> + '_> {
         if self.is_leaf() {
-            for value in &self.values {
-                descendents.push(value);
-            }
-            return Some(descendents);
+            Box::new(self.values.iter())
+        } else {
+            let children = (&self.children).as_ref().unwrap();
+            Box::new(
+                self.values
+                    .iter()
+                    .chain(children[0].get_all_descendant_values())
+                    .chain(children[1].get_all_descendant_values())
+                    .chain(children[2].get_all_descendant_values())
+                    .chain(children[3].get_all_descendant_values()),
+            )
         }
-        if let Some(children) = &self.children {
-            for child in children.iter() {
-                if let Some(child_descendents) = child.get_all_descendant_values() {
-                    for d in child_descendents {
-                        descendents.push(d);
-                    }
-                }
-            }
-        }
-        Some(descendents)
     }
 
     pub fn delete(&mut self, value: &T) -> Option<T> {
-        for value_idx in 0..self.values.len() {
-            if let Some(v) = self.values.get(value_idx) {
-                if v == value {
-                    return Some(self.values.remove(value_idx));
-                }
+        // clean up children if needed
+        if !self.is_leaf() {
+            let delete_children = self
+                .children
+                .as_ref()
+                .unwrap()
+                .iter()
+                .all(|child| child.values.len() == 0);
+            if delete_children {
+                self.children = None;
             }
         }
-        None
+        // delete value
+        self.values.take(value)
     }
 
     pub fn query_rect(&self, rect: &Rect) -> Option<&QuadtreeNode<T>> {
@@ -215,8 +218,8 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         if let None = &self.children {
             panic!("QuadtreeNode.distribute_values: Attempted to distribute_values without first calling create_children.");
         }
-        let values: Vec<T> = self.values.drain(..).collect();
-        for value in values.into_iter() {
+        let values: Vec<T> = self.values.drain().collect();
+        for value in values {
             if let Some(node) = self.query_rect_mut(value.get_rect()) {
                 node.add(value);
             } else {

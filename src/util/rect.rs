@@ -31,20 +31,20 @@ pub fn partition_rect(rect: &Rect) -> [Rect; 4] {
 }
 
 pub fn transform_to_rect(transform: &Transform) -> Rect {
-    let min = Vec2::new(transform.translation.x, transform.translation.y);
-    let max = min + Vec2::new(transform.scale.x, transform.scale.y);
+    let min = transform.translation.truncate();
+    let max = min + transform.scale.truncate();
     Rect { min, max }
 }
 
 pub fn magnify_rect(rect: &Rect, scale_factor: Vec2) -> Rect {
-    let current_scale = Vec2::new(rect.width(), rect.height());
-    let mid_point = rect.min + current_scale / 2.;
-    let new_scale = Vec2::new(
-        current_scale.x * scale_factor.x,
-        current_scale.y * scale_factor.y,
+    let half_current_scale = rect.size() / 2.;
+    let mid_point = rect.min + half_current_scale;
+    let half_new_scale = Vec2::new(
+        half_current_scale.x * scale_factor.x,
+        half_current_scale.y * scale_factor.y,
     );
-    let min = mid_point - new_scale / 2.;
-    let max = mid_point + new_scale / 2.;
+    let min = mid_point - half_new_scale;
+    let max = mid_point + half_new_scale;
     Rect { min, max }
 }
 
@@ -53,14 +53,5 @@ pub fn rect_contains_point(rect: &Rect, point: &Vec2) -> bool {
 }
 
 pub fn rect_contains_rect(rect: &Rect, other: &Rect) -> bool {
-    let start = other.min;
-    let diag = other.max - other.min;
-    let width = diag.project_onto(Vec2::X);
-    let height = diag.project_onto(Vec2::Y);
-    let end = other.max;
-    // check all four corners
-    rect_contains_point(rect, &start)
-        && rect_contains_point(rect, &(start + width))
-        && rect_contains_point(rect, &(start + height))
-        && rect_contains_point(rect, &end)
+    rect_contains_point(rect, &other.min) && rect_contains_point(rect, &other.max)
 }

@@ -14,13 +14,13 @@ use super::{
 
 const EPS: f32 = 0.00001;
 const DELTA_TIME_FIXED: f32 = 1. / PHYSICS_FRAME_RATE as f32;
-const BOID_DETECTION_RADIUS: f32 = 3.;
-const BOID_GROUP_APPROACH_RADIUS: f32 = 3.;
+const BOID_DETECTION_RADIUS: f32 = 2.;
+const BOID_GROUP_APPROACH_RADIUS: f32 = 2.;
 const BOID_SPEED: f32 = 100.;
 
-const THREADS_SMALL: usize = 4;
-const THREADS_MEDIUM: usize = 8;
-const THREADS_LARGE: usize = 16;
+const THREADS_SMALL: usize = 8;
+const THREADS_MEDIUM: usize = 16;
+const THREADS_LARGE: usize = 32;
 
 pub fn apply_kinematics(mut boid_query: Query<(&Kinematics, &mut Transform), With<Boid>>) {
     let h = DELTA_TIME_FIXED;
@@ -40,7 +40,6 @@ pub fn update_quadtree(
     mut quadtree: ResMut<EntityQuadtree>,
 ) {
     entity_query.for_each(|(entity, kinematics, transform)| {
-        // quadtrees have relatively fast delete and add operations, so just run that every time
         let value = EntityWrapper::new(entity, &kinematics.velocity, transform);
         if let Some(node) = quadtree.query_rect(value.get_rect()) {
             if !node.contains_value(&value) {
@@ -49,8 +48,7 @@ pub fn update_quadtree(
             }
         }
     });
-    quadtree.clean_structure();
-    // QuadtreeStats::calculate(&quadtree).print();
+    QuadtreeStats::calculate(&quadtree).print();
 }
 
 pub fn approach_nearby_boid_groups(
@@ -63,25 +61,24 @@ pub fn approach_nearby_boid_groups(
             magnify_rect(my_value.get_rect(), Vec2::ONE * BOID_GROUP_APPROACH_RADIUS);
         // find other nearby boids using quadtree lookup and calculate velocity_correction
         if let Some(node) = quadtree.query_rect(&detection_rect) {
-            if let Some(descendent_values) = node.get_all_descendant_values() {
-                let num_values = descendent_values.len();
-                // loop through nearby boids and sum up velocity_correction
-                if num_values > 1 {
-                    let mut average_velocity = Vec3::ZERO;
-                    for value in descendent_values {
-                        //skip self if found
-                        if value.entity != entity {
-                            average_velocity += value.velocity;
-                        }
-                    }
-                    average_velocity /= num_values as f32;
-                    // only apply correction if not NaN and above threshold
-                    if average_velocity.length_squared() > EPS {
-                        let current_dir = kinematics.velocity.normalize_or_zero();
-                        let force_direction = average_velocity.normalize_or_zero();
-                        let new_dir = current_dir.lerp(force_direction, 0.015);
-                        kinematics.velocity = new_dir * BOID_SPEED;
-                    }
+            let mut num_values = 0;
+            // loop through nearby boids and sum up velocity_correction
+            let mut average_velocity = Vec3::ZERO;
+            for value in node.get_all_descendant_values() {
+                //skip self if found
+                if value.entity != entity {
+                    average_velocity += value.velocity;
+                    num_values += 1;
+                }
+            }
+            if num_values > 1 {
+                average_velocity /= num_values as f32;
+                // only apply correction if not NaN and above threshold
+                if average_velocity.length_squared() > EPS {
+                    let current_dir = kinematics.velocity.normalize_or_zero();
+                    let force_direction = average_velocity.normalize_or_zero();
+                    let new_dir = current_dir.lerp(force_direction, 0.015);
+                    kinematics.velocity = new_dir * BOID_SPEED;
                 }
             }
         }
@@ -99,33 +96,26 @@ pub fn avoid_nearby_boids(
         let detection_rect = magnify_rect(my_value.get_rect(), Vec2::ONE * BOID_DETECTION_RADIUS);
         // find other nearby boids using quadtree lookup and calculate velocity_correction
         if let Some(node) = quadtree.query_rect(&detection_rect) {
-            if let Some(descendent_values) = node.get_all_descendant_values() {
-                let mut force_vec = Vec2::ZERO;
-                let num_values = descendent_values.len();
-                // loop through nearby boids and sum up velocity_correction
-                if num_values > 1 {
-                    for value in &descendent_values {
-                        //skip self if found
-                        if value.entity == my_value.entity {
-                            continue;
-                        }
-                        let diag = value.rect.max - value.rect.min;
-                        let midpoint = value.rect.min + diag / 2.;
-                        let distance = midpoint.distance(my_midpoint.clone());
-                        let direction_away = (midpoint - my_midpoint).normalize_or_zero();
-                        force_vec -= direction_away
-                            / (1.
-                                + (1. / BOID_SCALE.length())
-                                    * (distance - BOID_SCALE.length()).exp());
-                    }
-                    // only apply correction if not NaN and above threshold
-                    if force_vec.length_squared() > EPS {
-                        let current_dir = kinematics.velocity.normalize_or_zero();
-                        let force_direction = force_vec.normalize_or_zero().extend(0.);
-                        let new_dir = current_dir.lerp(force_direction, 0.03);
-                        kinematics.velocity = new_dir * BOID_SPEED;
-                    }
+            // loop through nearby boids and sum up velocity_correction
+            let mut force_vec = Vec2::ZERO;
+            for value in node.get_all_descendant_values() {
+                //skip self if found
+                if value.entity == my_value.entity {
+                    continue;
                 }
+                let diag = value.rect.max - value.rect.min;
+                let midpoint = value.rect.min + diag / 2.;
+                let distance = midpoint.distance(my_midpoint.clone());
+                let direction_away = (midpoint - my_midpoint).normalize_or_zero();
+                force_vec -= direction_away
+                    / (1. + (1. / BOID_SCALE.length()) * (distance - BOID_SCALE.length()).exp());
+            }
+            // only apply correction if not NaN and above threshold
+            if force_vec.length_squared() > EPS {
+                let current_dir = kinematics.velocity.normalize_or_zero();
+                let force_direction = force_vec.normalize_or_zero().extend(0.);
+                let new_dir = current_dir.lerp(force_direction, 0.03);
+                kinematics.velocity = new_dir * BOID_SPEED;
             }
         }
     });

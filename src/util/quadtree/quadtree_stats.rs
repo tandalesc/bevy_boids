@@ -20,8 +20,8 @@ impl QuadtreeStats {
         let total_depth_fn: fn(&QuadtreeNode<T>) -> f32 = |node| node.depth as f32;
         let num_nodes = quadtree.root.aggregate_statistic(&count_children_fn);
         let num_values = quadtree.root.aggregate_statistic(&count_values_fn);
-        let average_depth = quadtree.root.aggregate_statistic(&total_depth_fn) / num_nodes as f32;
-        let average_num_values = num_values as f32 / num_nodes as f32;
+        let average_depth = quadtree.root.aggregate_statistic(&total_depth_fn) / (num_nodes as f32).max(1.);
+        let average_num_values = num_values as f32 / (num_nodes as f32).max(1.);
         QuadtreeStats {
             num_nodes,
             num_values,
