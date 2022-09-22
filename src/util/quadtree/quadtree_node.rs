@@ -1,9 +1,6 @@
 use std::ops::AddAssign;
 
-use bevy::{
-    sprite::Rect,
-    utils::{hashbrown::hash_set::Iter, HashSet},
-};
+use bevy::{sprite::Rect, utils::HashSet};
 
 use crate::util::rect::{partition_rect, rect_contains_rect};
 
@@ -53,7 +50,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
     ) -> AggT {
         let mut agg_value: AggT = agg_func(self);
         if let Some(children) = &self.children {
-            for child in children.iter() {
+            for child in children.as_ref() {
                 agg_value += child.aggregate_statistic(agg_func);
             }
         }
@@ -175,7 +172,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
             return None;
         }
         if let Some(boxed_children) = &self.children {
-            for child in boxed_children.iter() {
+            for child in boxed_children.as_ref() {
                 if let Some(gc) = child.query_rect(rect) {
                     return Some(gc);
                 }
@@ -192,7 +189,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
             return Some(self);
         }
         if let Some(boxed_children) = self.children.as_mut() {
-            for child in boxed_children.iter_mut() {
+            for child in boxed_children.as_mut() {
                 if let Some(gc) = child.query_rect_mut(rect) {
                     return Some(gc);
                 }
