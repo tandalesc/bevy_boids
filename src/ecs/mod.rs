@@ -3,6 +3,7 @@ pub mod resources;
 pub mod setup;
 pub mod systems;
 
+use bevy::window::WindowMode;
 use bevy::{prelude::*, sprite::Rect, time::FixedTimestep};
 
 use self::components::CollisionEvent;
@@ -13,9 +14,10 @@ use self::systems::{
     update_quadtree, wrap_screen_edges,
 };
 
+const SCREEN_SIZE: Vec2 = Vec2::new(1920., 1080.);
 const QUADTREE_SIZE: Rect = Rect {
-    min: Vec2::new(-3000., -3000.),
-    max: Vec2::new(3000., 3000.),
+    min: Vec2::new(-SCREEN_SIZE.x/2., -SCREEN_SIZE.y/2.),
+    max: Vec2::new(SCREEN_SIZE.x/2., SCREEN_SIZE.y/2.),
 };
 const BACKGROUND_COLOR: Color = Color::rgb(0.1, 0.1, 0.1);
 pub const PHYSICS_FRAME_RATE: f64 = 60.;
@@ -25,6 +27,13 @@ pub const PHYSICS_FRAME_RATE: f64 = 60.;
 */
 pub fn run_ecs_application() {
     App::new()
+        .insert_resource(WindowDescriptor {
+            title: "Bevy Boids".to_string(),
+            width: 1920.,
+            height: 1080.,
+            mode: WindowMode::Windowed,
+            ..default()
+        })
         .add_plugins(DefaultPlugins)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(EntityQuadtree::empty(QUADTREE_SIZE))

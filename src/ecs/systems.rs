@@ -14,9 +14,9 @@ use super::{
 
 const EPS: f32 = 0.00001;
 const DELTA_TIME_FIXED: f32 = 1. / PHYSICS_FRAME_RATE as f32;
-const BOID_DETECTION_RADIUS: f32 = 2.;
+const BOID_DETECTION_RADIUS: f32 = 1.5;
 const BOID_GROUP_APPROACH_RADIUS: f32 = 2.;
-const BOID_SPEED: f32 = 100.;
+pub const BOID_SPEED: f32 = 100.;
 
 const THREADS_SMALL: usize = 8;
 const THREADS_MEDIUM: usize = 16;
@@ -55,7 +55,7 @@ pub fn approach_nearby_boid_groups(
     mut kinematics_query: Query<(&mut Kinematics, Entity, &Transform), With<Boid>>,
     quadtree: Res<EntityQuadtree>,
 ) {
-    kinematics_query.par_for_each_mut(THREADS_SMALL, |(mut kinematics, entity, transform)| {
+    kinematics_query.par_for_each_mut(THREADS_MEDIUM, |(mut kinematics, entity, transform)| {
         let my_value = EntityWrapper::new(entity, &kinematics.velocity, transform);
         let detection_rect =
             magnify_rect(my_value.get_rect(), Vec2::ONE * BOID_GROUP_APPROACH_RADIUS);
@@ -89,7 +89,7 @@ pub fn avoid_nearby_boids(
     mut kinematics_query: Query<(&mut Kinematics, Entity, &Transform), With<Boid>>,
     quadtree: Res<EntityQuadtree>,
 ) {
-    kinematics_query.par_for_each_mut(THREADS_SMALL, |(mut kinematics, entity, transform)| {
+    kinematics_query.par_for_each_mut(THREADS_MEDIUM, |(mut kinematics, entity, transform)| {
         let my_value = EntityWrapper::new(entity, &kinematics.velocity, transform);
         let my_diag = my_value.rect.max - my_value.rect.min;
         let my_midpoint = my_value.rect.min + my_diag / 2.;

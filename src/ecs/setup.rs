@@ -5,7 +5,7 @@ use crate::util::quadtree::quadtree_stats::QuadtreeStats;
 
 use super::{
     components::{Boid, Collider, Kinematics},
-    resources::{EntityQuadtree, EntityWrapper},
+    resources::{EntityQuadtree, EntityWrapper}, systems::BOID_SPEED,
 };
 
 pub const BOID_SCALE: Vec2 = Vec2::new(2.5, 2.5);
@@ -31,7 +31,7 @@ pub fn spawn_boids(mut commands: Commands, mut quadtree: ResMut<EntityQuadtree>)
             let velocity = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0))
                 .normalize_or_zero()
                 .extend(0.)
-                * 100.;
+                * BOID_SPEED;
             //spawn boid
             let entity = commands
                 .spawn()
