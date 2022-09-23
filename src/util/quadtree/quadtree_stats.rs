@@ -12,10 +12,7 @@ impl QuadtreeStats {
     // calcuates common statistics about a quadtree
     pub fn calculate<T: QuadtreeValue>(quadtree: &Quadtree<T>) -> QuadtreeStats {
         // functions
-        let count_children_fn: fn(&QuadtreeNode<T>) -> usize = |node| match node.children {
-            None => 0,
-            Some(_) => 4,
-        };
+        let count_children_fn: fn(&QuadtreeNode<T>) -> usize = |node| node.children.len();
         let count_values_fn: fn(&QuadtreeNode<T>) -> usize = |node| node.values.len();
         let total_depth_fn: fn(&QuadtreeNode<T>) -> f32 = |node| node.depth as f32;
         let num_nodes = quadtree.root.aggregate_statistic(&count_children_fn);
