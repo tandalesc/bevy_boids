@@ -67,7 +67,9 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
                 self.distribute_values();
             }
         } else {
-            if self.children_contain_rect(value.get_rect()) {
+            if self.values.len() < THRESHOLD {
+                self.values.insert(value);
+            } else if self.children_contain_rect(value.get_rect()) {
                 if let Some(child) = self.query_rect_mut(value.get_rect()) {
                     child.add(value);
                 }
