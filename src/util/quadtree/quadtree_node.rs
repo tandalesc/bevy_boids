@@ -61,6 +61,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
             } else {
                 self.create_children();
                 self.distribute_values();
+                self.add(value);
             }
         } else {
             if self.values.len() < THRESHOLD {
