@@ -3,6 +3,7 @@ pub mod resources;
 pub mod setup;
 pub mod systems;
 
+use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::window::WindowMode;
 use bevy::{prelude::*, sprite::Rect, time::FixedTimestep};
 
@@ -35,6 +36,8 @@ pub fn run_ecs_application() {
             ..default()
         })
         .add_plugins(DefaultPlugins)
+        // .add_plugin(LogDiagnosticsPlugin::default())
+        // .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(EntityQuadtree::empty(QUADTREE_SIZE))
         .add_startup_system(setup_camera)
