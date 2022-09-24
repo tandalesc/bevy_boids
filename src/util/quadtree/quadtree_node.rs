@@ -101,8 +101,6 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
             if let Some(node) = child.find_value(value) {
                 if node.contains_value(value) {
                     return Some(node);
-                } else {
-                    return node.find_value(value);
                 }
             }
         }
@@ -117,8 +115,6 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
             if let Some(node) = child.find_value_mut(value) {
                 if node.contains_value(value) {
                     return Some(node);
-                } else {
-                    return node.find_value_mut(value);
                 }
             }
         }
@@ -184,7 +180,8 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
             return;
         }
         for rect in partition_rect(&self.rect) {
-            self.children.push(QuadtreeNode::empty(rect, self.depth + 1));
+            self.children
+                .push(QuadtreeNode::empty(rect, self.depth + 1));
         }
     }
 
