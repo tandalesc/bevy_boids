@@ -23,10 +23,9 @@ impl<T: QuadtreeValue> Quadtree<T> {
     }
 
     pub fn delete(&mut self, value: &T) -> Option<T> {
-        if let Some(node) = self.query_value_mut(value) {
-            node.delete(value)
-        } else {
-            None
+        match self.query_value_mut(value) {
+            Some(node) => node.delete(value),
+            None => None,
         }
     }
 
@@ -35,19 +34,11 @@ impl<T: QuadtreeValue> Quadtree<T> {
     }
 
     pub fn query_value(&self, value: &T) -> Option<&QuadtreeNode<T>> {
-        if self.root.contains_value(value) {
-            Some(&self.root)
-        } else {
-            self.root.find_value(value)
-        }
+        self.root.find_value(value)
     }
 
     pub fn query_value_mut(&mut self, value: &T) -> Option<&mut QuadtreeNode<T>> {
-        if self.root.contains_value(value) {
-            Some(&mut self.root)
-        } else {
-            self.root.find_value_mut(value)
-        }
+        self.root.find_value_mut(value)
     }
 
     pub fn query_rect(&self, rect: &Rect) -> Option<&QuadtreeNode<T>> {
