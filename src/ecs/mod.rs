@@ -30,8 +30,8 @@ pub fn run_ecs_application() {
     App::new()
         .insert_resource(WindowDescriptor {
             title: "Bevy Boids".to_string(),
-            width: 1920.,
-            height: 1080.,
+            width: SCREEN_SIZE.x,
+            height: SCREEN_SIZE.y,
             mode: WindowMode::Windowed,
             ..default()
         })
