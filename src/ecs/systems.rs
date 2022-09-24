@@ -22,15 +22,8 @@ const THREADS_MEDIUM: usize = 16;
 const THREADS_LARGE: usize = 32;
 
 pub fn apply_kinematics(mut boid_query: Query<(&Kinematics, &mut Transform)>) {
-    let h = DELTA_TIME_FIXED;
     boid_query.par_for_each_mut(THREADS_LARGE, |(kinematics, mut transform)| {
-        let v0 = kinematics.velocity;
-        let k1 = kinematics.integrate(0.) + v0;
-        let k2 = kinematics.integrate(h / 2.) + (v0 + k1 / 2.);
-        let k3 = kinematics.integrate(h / 2.) + (v0 + k2 / 2.);
-        let k4 = kinematics.integrate(h) + (v0 + k3);
-        let dy = h * (k1 + (2. * k2) + (2. * k3) + k4) / 6.;
-        transform.translation += dy;
+        transform.translation += kinematics.integrate_rk4(DELTA_TIME_FIXED);
     });
 }
 
