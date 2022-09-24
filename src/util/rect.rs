@@ -36,6 +36,12 @@ pub fn transform_to_rect(transform: &Transform) -> Rect {
     Rect { min, max }
 }
 
+pub fn transform_to_rect_with_offset(transform: &Transform, offset: Vec2) -> Rect {
+    let min = offset + transform.translation.truncate();
+    let max = offset + min + transform.scale.truncate();
+    Rect { min, max }
+}
+
 pub fn magnify_rect(rect: &Rect, scale_factor: Vec2) -> Rect {
     let half_current_scale = (rect.max - rect.min)/2.;
     let mid_point = rect.min + half_current_scale;
