@@ -54,13 +54,13 @@ pub fn run_ecs_application() {
 fn physics_system_set(physics_frame_rate: f64) -> SystemSet {
     SystemSet::new()
         .with_run_criteria(FixedTimestep::steps_per_second(physics_frame_rate))
-        .with_system(apply_kinematics)
-        .with_system(update_quadtree.after(apply_kinematics))
-        .with_system(approach_nearby_boid_groups.after(update_quadtree))
-        .with_system(avoid_nearby_boids.after(update_quadtree))
+        .with_system(approach_nearby_boid_groups)
+        .with_system(avoid_nearby_boids)
         .with_system(
             avoid_screen_edges
                 .after(approach_nearby_boid_groups)
                 .after(avoid_nearby_boids),
         )
+        .with_system(apply_kinematics.after(avoid_screen_edges))
+        .with_system(update_quadtree.after(apply_kinematics))
 }
