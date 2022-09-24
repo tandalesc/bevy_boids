@@ -1,6 +1,6 @@
 use bevy::{prelude::*, sprite::Rect};
 
-pub fn partition_rect(rect: &Rect) -> [Rect; 4] {
+pub fn partition_rect(rect: &Rect) -> Vec<Rect> {
     let start = rect.min;
     let diag = rect.max - rect.min;
     let width = diag.project_onto(Vec2::X);
@@ -10,7 +10,7 @@ pub fn partition_rect(rect: &Rect) -> [Rect; 4] {
     let half_diag = diag / 2.;
     let center = start + half_diag;
     let end = rect.max;
-    [
+    vec![
         Rect {
             min: start.clone(),
             max: center.clone(),
@@ -37,7 +37,7 @@ pub fn transform_to_rect(transform: &Transform) -> Rect {
 }
 
 pub fn magnify_rect(rect: &Rect, scale_factor: Vec2) -> Rect {
-    let half_current_scale = rect.size() / 2.;
+    let half_current_scale = (rect.max - rect.min)/2.;
     let mid_point = rect.min + half_current_scale;
     let half_new_scale = Vec2::new(
         half_current_scale.x * scale_factor.x,
