@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::util::{
     quadtree::{quadtree_stats::QuadtreeStats, quadtree_value::QuadtreeValue},
-    rect::magnify_rect,
+    rect::{magnify_rect, transform_to_rect},
 };
 
 use super::{
@@ -41,7 +41,7 @@ pub fn update_quadtree(
 ) {
     entity_query.for_each(|(entity, kinematics, transform)| {
         let value = EntityWrapper::new(entity, &kinematics.velocity, transform);
-        if let Some(node) = quadtree.query_rect(value.get_rect()) {
+        if let Some(node) = quadtree.query_rect_mut(value.get_rect()) {
             if !node.contains_value(&value) {
                 quadtree.delete(&value);
                 quadtree.add(value);
@@ -58,18 +58,18 @@ pub fn approach_nearby_boid_groups(
     kinematics_query.par_for_each_mut(THREADS_MEDIUM, |(mut kinematics, entity, transform)| {
         let my_value = EntityWrapper::new(entity, &kinematics.velocity, transform);
         let detection_rect =
-            magnify_rect(my_value.get_rect(), Vec2::ONE * BOID_GROUP_APPROACH_RADIUS);
+            magnify_rect(my_value.get_rect(), Vec2::splat(BOID_GROUP_APPROACH_RADIUS));
         // find other nearby boids using quadtree lookup and calculate velocity_correction
         if let Some(node) = quadtree.query_rect(&detection_rect) {
             let mut num_values = 0;
             // loop through nearby boids and sum up velocity_correction
             let mut average_velocity = Vec3::ZERO;
-            for value in node.get_all_descendant_values() {
-                //skip self if found
-                if value.entity != entity {
-                    average_velocity += value.velocity;
-                    num_values += 1;
-                }
+            for value in node
+                .get_all_descendant_values()
+                .filter(|v| v.entity != entity)
+            {
+                average_velocity += value.velocity;
+                num_values += 1;
             }
             if num_values > 1 {
                 average_velocity /= num_values as f32;
@@ -90,22 +90,21 @@ pub fn avoid_nearby_boids(
     quadtree: Res<EntityQuadtree>,
 ) {
     kinematics_query.par_for_each_mut(THREADS_MEDIUM, |(mut kinematics, entity, transform)| {
-        let my_value = EntityWrapper::new(entity, &kinematics.velocity, transform);
-        let my_diag = my_value.rect.max - my_value.rect.min;
-        let my_midpoint = my_value.rect.min + my_diag / 2.;
-        let detection_rect = magnify_rect(my_value.get_rect(), Vec2::ONE * BOID_DETECTION_RADIUS);
+        let my_rect = transform_to_rect(transform);
+        let my_diag = my_rect.max - my_rect.min;
+        let my_midpoint = my_rect.min + my_diag / 2.;
+        let detection_rect = magnify_rect(&my_rect, Vec2::splat(BOID_DETECTION_RADIUS));
         // find other nearby boids using quadtree lookup and calculate velocity_correction
         if let Some(node) = quadtree.query_rect(&detection_rect) {
             // loop through nearby boids and sum up velocity_correction
             let mut force_vec = Vec2::ZERO;
-            for value in node.get_all_descendant_values() {
-                //skip self if found
-                if value.entity == my_value.entity {
-                    continue;
-                }
+            for value in node
+                .get_all_descendant_values()
+                .filter(|v| v.entity != entity)
+            {
                 let diag = value.rect.max - value.rect.min;
                 let midpoint = value.rect.min + diag / 2.;
-                let distance = midpoint.distance(my_midpoint.clone());
+                let distance = midpoint.distance(my_midpoint);
                 let direction_away = (midpoint - my_midpoint).normalize_or_zero();
                 force_vec -= direction_away
                     / (1. + (1. / BOID_SCALE.length()) * (distance - BOID_SCALE.length()).exp());
