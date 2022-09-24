@@ -16,8 +16,10 @@ const EPS: f32 = 0.00001;
 const DELTA_TIME_FIXED: f32 = 1. / PHYSICS_FRAME_RATE as f32;
 const BOID_DETECTION_RADIUS: f32 = 1.5;
 const BOID_GROUP_APPROACH_RADIUS: f32 = 2.;
+const BOID_AVOID_DAMPENING: f32 = 0.03;
+const BOID_APPROACH_DAMPENING: f32 = 0.015;
 
-const THREADS_SMALL: usize = 8;
+// const THREADS_SMALL: usize = 8;
 const THREADS_MEDIUM: usize = 16;
 const THREADS_LARGE: usize = 32;
 
@@ -68,7 +70,7 @@ pub fn approach_nearby_boid_groups(
                 if average_velocity.length_squared() > EPS {
                     let current_dir = kinematics.velocity.normalize_or_zero();
                     let force_direction = average_velocity.normalize_or_zero();
-                    let new_dir = current_dir.lerp(force_direction, 0.015).normalize_or_zero();
+                    let new_dir = current_dir.lerp(force_direction, BOID_APPROACH_DAMPENING).normalize_or_zero();
                     kinematics.velocity = new_dir * kinematics.velocity.length();
                 }
             }
@@ -102,7 +104,7 @@ pub fn avoid_nearby_boids(
             if force_vec.length_squared() > EPS {
                 let current_dir = kinematics.velocity.normalize_or_zero();
                 let force_direction = force_vec.normalize_or_zero().extend(0.);
-                let new_dir = current_dir.lerp(force_direction, 0.03).normalize_or_zero();
+                let new_dir = current_dir.lerp(force_direction, BOID_AVOID_DAMPENING).normalize_or_zero();
                 kinematics.velocity = new_dir * kinematics.velocity.length();
             }
         }
