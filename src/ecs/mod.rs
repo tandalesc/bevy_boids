@@ -3,7 +3,7 @@ pub mod resources;
 pub mod setup;
 pub mod systems;
 
-use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::window::WindowMode;
 use bevy::{prelude::*, sprite::Rect, time::FixedTimestep};
 
@@ -17,8 +17,8 @@ use self::systems::{
 
 const SCREEN_SIZE: Vec2 = Vec2::new(1920., 1080.);
 const QUADTREE_SIZE: Rect = Rect {
-    min: Vec2::new(-SCREEN_SIZE.x/2., -SCREEN_SIZE.y/2.),
-    max: Vec2::new(SCREEN_SIZE.x/2., SCREEN_SIZE.y/2.),
+    min: Vec2::new(-SCREEN_SIZE.x / 2., -SCREEN_SIZE.y / 2.),
+    max: Vec2::new(SCREEN_SIZE.x / 2., SCREEN_SIZE.y / 2.),
 };
 const BACKGROUND_COLOR: Color = Color::rgb(0.1, 0.1, 0.1);
 pub const PHYSICS_FRAME_RATE: f64 = 60.;
@@ -58,5 +58,9 @@ fn physics_system_set(physics_frame_rate: f64) -> SystemSet {
         .with_system(update_quadtree.after(apply_kinematics))
         .with_system(approach_nearby_boid_groups.after(update_quadtree))
         .with_system(avoid_nearby_boids.after(update_quadtree))
-        .with_system(avoid_screen_edges.after(update_quadtree))
+        .with_system(
+            avoid_screen_edges
+                .after(approach_nearby_boid_groups)
+                .after(avoid_nearby_boids),
+        )
 }
