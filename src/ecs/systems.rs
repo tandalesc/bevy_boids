@@ -2,13 +2,13 @@ use bevy::prelude::*;
 
 use crate::util::{
     quadtree::{quadtree_stats::QuadtreeStats, quadtree_value::QuadtreeValue},
-    rect::{magnify_rect, transform_to_rect, transform_to_rect_with_offset},
+    rect::{magnify_rect, transform_to_rect},
 };
 
 use super::{
     components::{Boid, Kinematics},
     resources::{EntityQuadtree, EntityWrapper},
-    setup::{BOID_DIAG_LENGTH, BOID_DIAG_LEN_EXP, BOID_DIAG_LEN_RECIP, BOID_SCALE},
+    setup::{BOID_DIAG_LENGTH, BOID_DIAG_LEN_RECIP, BOID_SCALE},
     PHYSICS_FRAME_RATE,
 };
 
@@ -16,7 +16,6 @@ const EPS: f32 = 0.00001;
 const DELTA_TIME_FIXED: f32 = 1. / PHYSICS_FRAME_RATE as f32;
 const BOID_DETECTION_RADIUS: f32 = 1.5;
 const BOID_GROUP_APPROACH_RADIUS: f32 = 2.;
-pub const BOID_SPEED: f32 = 100.;
 
 const THREADS_SMALL: usize = 8;
 const THREADS_MEDIUM: usize = 16;
@@ -24,7 +23,7 @@ const THREADS_LARGE: usize = 32;
 
 pub fn apply_kinematics(mut boid_query: Query<(&Kinematics, &mut Transform)>) {
     let h = DELTA_TIME_FIXED;
-    boid_query.par_for_each_mut(THREADS_MEDIUM, |(kinematics, mut transform)| {
+    boid_query.par_for_each_mut(THREADS_LARGE, |(kinematics, mut transform)| {
         let v0 = kinematics.velocity;
         let k1 = kinematics.integrate(0.) + v0;
         let k2 = kinematics.integrate(h / 2.) + (v0 + k1 / 2.);
@@ -99,11 +98,12 @@ pub fn avoid_nearby_boids(
                 .get_all_descendant_values()
                 .filter(|&v| v.entity != entity)
             {
-                let delta_vec = my_rect.min - value.rect.min
-                    + kinematics.integrate(DELTA_TIME_FIXED).truncate();
+                let delta_vec = my_rect.min - value.rect.min;
                 let direction_away = delta_vec.normalize_or_zero();
                 force_vec -= direction_away
-                    / (1. + BOID_DIAG_LEN_RECIP * (delta_vec.length() - BOID_DIAG_LENGTH).exp());
+                    / (1.
+                        + BOID_DIAG_LEN_RECIP
+                            * (delta_vec.length_squared() - BOID_DIAG_LENGTH).exp());
             }
             // only apply correction if not NaN and above threshold
             if force_vec.length_squared() > EPS {
@@ -173,11 +173,17 @@ pub fn wrap_screen_edges(
         let distance_to_top = top_edge_y - loc.y - margin.y;
         let distance_to_bottom = loc.y - bottom_edge_y - margin.y;
         // wrap if too close to screen edge
-        if distance_to_left < EPS || distance_to_right < EPS {
-            transform.translation.x *= -1.;
+        if distance_to_left < EPS {
+            transform.translation.x += distance_to_right;
         }
-        if distance_to_top < EPS || distance_to_bottom < EPS {
-            transform.translation.y *= -1.;
+        if distance_to_right < EPS {
+            transform.translation.x -= distance_to_left;
+        }
+        if distance_to_top < EPS {
+            transform.translation.y -= distance_to_bottom;
+        }
+        if distance_to_bottom < EPS {
+            transform.translation.y += distance_to_top;
         }
     });
 }
