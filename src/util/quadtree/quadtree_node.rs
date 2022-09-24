@@ -1,4 +1,4 @@
-use std::{iter::Chain, ops::AddAssign};
+use std::ops::AddAssign;
 
 use bevy::{sprite::Rect, utils::HashSet};
 
@@ -143,7 +143,7 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
     pub fn delete(&mut self, value: &T) -> Option<T> {
         // clean up children if needed
         if !self.is_leaf() {
-            let delete_children = self.children.iter().all(|child| child.values.len() == 0);
+            let delete_children = self.children.iter().all(|child| child.values.is_empty());
             if delete_children {
                 self.children.clear();
             }
@@ -180,11 +180,10 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
     }
 
     fn create_children(&mut self) {
-        if self.children.len() == 4 {
+        if self.children.len() > 0 {
             return;
         }
-        let child_rects = partition_rect(&self.rect);
-        for rect in child_rects {
+        for rect in partition_rect(&self.rect) {
             self.children.push(QuadtreeNode::empty(rect, self.depth + 1));
         }
     }
@@ -195,10 +194,13 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         }
         let values: Vec<T> = self.values.drain().collect();
         for value in values {
-            if let Some(node) = self.query_rect_mut(value.get_rect()) {
-                node.add(value);
-            } else {
-                self.add(value);
+            match self.query_rect_mut(value.get_rect()) {
+                Some(node) => {
+                    node.add(value);
+                }
+                None => {
+                    self.add(value);
+                }
             }
         }
     }
