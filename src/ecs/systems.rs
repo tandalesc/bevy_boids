@@ -2,13 +2,13 @@ use bevy::prelude::*;
 
 use crate::util::{
     quadtree::{quadtree_stats::QuadtreeStats, quadtree_value::QuadtreeValue},
-    rect::{magnify_rect, transform_to_rect},
+    rect::{magnify_rect, transform_to_rect, transform_to_rect_with_offset},
 };
 
 use super::{
     components::{Boid, Kinematics},
     resources::{EntityQuadtree, EntityWrapper},
-    setup::BOID_SCALE,
+    setup::{BOID_DIAG_LENGTH, BOID_DIAG_LEN_EXP, BOID_DIAG_LEN_RECIP, BOID_SCALE},
     PHYSICS_FRAME_RATE,
 };
 
@@ -22,7 +22,7 @@ const THREADS_SMALL: usize = 8;
 const THREADS_MEDIUM: usize = 16;
 const THREADS_LARGE: usize = 32;
 
-pub fn apply_kinematics(mut boid_query: Query<(&Kinematics, &mut Transform), With<Boid>>) {
+pub fn apply_kinematics(mut boid_query: Query<(&Kinematics, &mut Transform)>) {
     let h = DELTA_TIME_FIXED;
     boid_query.par_for_each_mut(THREADS_MEDIUM, |(kinematics, mut transform)| {
         let v0 = kinematics.velocity;
@@ -56,17 +56,16 @@ pub fn approach_nearby_boid_groups(
     quadtree: Res<EntityQuadtree>,
 ) {
     kinematics_query.par_for_each_mut(THREADS_MEDIUM, |(mut kinematics, entity, transform)| {
-        let my_value = EntityWrapper::new(entity, &kinematics.velocity, transform);
-        let detection_rect =
-            magnify_rect(my_value.get_rect(), Vec2::splat(BOID_GROUP_APPROACH_RADIUS));
+        let my_rect = transform_to_rect(transform);
+        let detection_rect = magnify_rect(&my_rect, Vec2::splat(BOID_GROUP_APPROACH_RADIUS));
         // find other nearby boids using quadtree lookup and calculate velocity_correction
         if let Some(node) = quadtree.query_rect(&detection_rect) {
-            let mut num_values = 0;
             // loop through nearby boids and sum up velocity_correction
+            let mut num_values = 0;
             let mut average_velocity = Vec3::ZERO;
             for value in node
                 .get_all_descendant_values()
-                .filter(|v| v.entity != entity)
+                .filter(|&v| v.entity != entity)
             {
                 average_velocity += value.velocity;
                 num_values += 1;
@@ -77,8 +76,8 @@ pub fn approach_nearby_boid_groups(
                 if average_velocity.length_squared() > EPS {
                     let current_dir = kinematics.velocity.normalize_or_zero();
                     let force_direction = average_velocity.normalize_or_zero();
-                    let new_dir = current_dir.lerp(force_direction, 0.015);
-                    kinematics.velocity = new_dir * BOID_SPEED;
+                    let new_dir = current_dir.lerp(force_direction, 0.015).normalize_or_zero();
+                    kinematics.velocity = new_dir * kinematics.velocity.length();
                 }
             }
         }
@@ -91,8 +90,6 @@ pub fn avoid_nearby_boids(
 ) {
     kinematics_query.par_for_each_mut(THREADS_MEDIUM, |(mut kinematics, entity, transform)| {
         let my_rect = transform_to_rect(transform);
-        let my_diag = my_rect.max - my_rect.min;
-        let my_midpoint = my_rect.min + my_diag / 2.;
         let detection_rect = magnify_rect(&my_rect, Vec2::splat(BOID_DETECTION_RADIUS));
         // find other nearby boids using quadtree lookup and calculate velocity_correction
         if let Some(node) = quadtree.query_rect(&detection_rect) {
@@ -100,21 +97,20 @@ pub fn avoid_nearby_boids(
             let mut force_vec = Vec2::ZERO;
             for value in node
                 .get_all_descendant_values()
-                .filter(|v| v.entity != entity)
+                .filter(|&v| v.entity != entity)
             {
-                let diag = value.rect.max - value.rect.min;
-                let midpoint = value.rect.min + diag / 2.;
-                let distance = midpoint.distance(my_midpoint);
-                let direction_away = (midpoint - my_midpoint).normalize_or_zero();
+                let delta_vec = my_rect.min - value.rect.min
+                    + kinematics.integrate(DELTA_TIME_FIXED).truncate();
+                let direction_away = delta_vec.normalize_or_zero();
                 force_vec -= direction_away
-                    / (1. + (1. / BOID_SCALE.length()) * (distance - BOID_SCALE.length()).exp());
+                    / (1. + BOID_DIAG_LEN_RECIP * (delta_vec.length() - BOID_DIAG_LENGTH).exp());
             }
             // only apply correction if not NaN and above threshold
             if force_vec.length_squared() > EPS {
                 let current_dir = kinematics.velocity.normalize_or_zero();
                 let force_direction = force_vec.normalize_or_zero().extend(0.);
-                let new_dir = current_dir.lerp(force_direction, 0.03);
-                kinematics.velocity = new_dir * BOID_SPEED;
+                let new_dir = current_dir.lerp(force_direction, 0.03).normalize_or_zero();
+                kinematics.velocity = new_dir * kinematics.velocity.length();
             }
         }
     });
@@ -124,7 +120,7 @@ pub fn avoid_screen_edges(
     mut kinematics_query: Query<(&mut Kinematics, &Transform), With<Boid>>,
     windows: Res<Windows>,
 ) {
-    let mut window_size = Vec2::new(0., 0.);
+    let mut window_size = Vec2::ZERO;
     if let Some(window) = windows.get_primary() {
         window_size.x = window.width();
         window_size.y = window.height();
@@ -135,28 +131,20 @@ pub fn avoid_screen_edges(
     let right_edge_x = window_size.x / 2.0;
     let top_edge_y = window_size.y / 2.0;
     let bottom_edge_y = -window_size.y / 2.0;
+    let margin = (BOID_SCALE / 2.).extend(0.);
     kinematics_query.par_for_each_mut(THREADS_LARGE, |(mut kinematics, transform)| {
-        let margin = BOID_SCALE / 2.;
-        let loc = transform.translation + margin.extend(0.);
+        let loc = transform.translation + kinematics.integrate(DELTA_TIME_FIXED) + margin;
         // calculate distances
         let distance_to_left = loc.x - left_edge_x - margin.x;
         let distance_to_right = right_edge_x - loc.x - margin.x;
         let distance_to_top = top_edge_y - loc.y - margin.y;
         let distance_to_bottom = loc.y - bottom_edge_y - margin.y;
         // bounce if too close to screen edge
-        let mut update_velocity = false;
-        let mut new_velocity = kinematics.velocity.clone();
         if distance_to_left < EPS || distance_to_right < EPS {
-            new_velocity.x *= -1.;
-            update_velocity = true;
+            kinematics.velocity.x *= -1.;
         }
         if distance_to_top < EPS || distance_to_bottom < EPS {
-            new_velocity.y *= -1.;
-            update_velocity = true;
-        }
-        // only apply velocity if updated
-        if update_velocity {
-            kinematics.velocity = new_velocity;
+            kinematics.velocity.y *= -1.;
         }
     });
 }
@@ -165,7 +153,7 @@ pub fn wrap_screen_edges(
     mut kinematics_query: Query<&mut Transform, With<Boid>>,
     windows: Res<Windows>,
 ) {
-    let mut window_size = Vec2::new(0., 0.);
+    let mut window_size = Vec2::ZERO;
     if let Some(window) = windows.get_primary() {
         window_size.x = window.width();
         window_size.y = window.height();
@@ -176,9 +164,9 @@ pub fn wrap_screen_edges(
     let right_edge_x = window_size.x / 2.0;
     let top_edge_y = window_size.y / 2.0;
     let bottom_edge_y = -window_size.y / 2.0;
+    let margin = (BOID_SCALE / 2.).extend(0.);
     kinematics_query.par_for_each_mut(THREADS_LARGE, |mut transform| {
-        let margin = BOID_SCALE / 2.;
-        let loc = transform.translation + margin.extend(0.);
+        let loc = transform.translation + margin;
         // calculate distances
         let distance_to_left = loc.x - left_edge_x - margin.x;
         let distance_to_right = right_edge_x - loc.x - margin.x;
