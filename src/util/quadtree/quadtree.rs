@@ -29,14 +29,6 @@ impl<T: QuadtreeValue> Quadtree<T> {
         }
     }
 
-    pub fn clean_structure(&mut self) {
-        self.root.clean_children();
-    }
-
-    pub fn query_value(&self, value: &T) -> Option<&QuadtreeNode<T>> {
-        self.root.find_value(value)
-    }
-
     pub fn query_value_mut(&mut self, value: &T) -> Option<&mut QuadtreeNode<T>> {
         self.root.find_value_mut(value)
     }
