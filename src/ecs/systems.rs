@@ -59,7 +59,7 @@ pub fn approach_nearby_boid_groups(
             let mut average_velocity = Vec3::ZERO;
             for value in node
                 .get_all_descendant_values()
-                .filter(|&v| v.entity != entity)
+                .filter(|v| v.entity != entity)
             {
                 average_velocity += value.velocity;
                 num_values += 1;
@@ -70,7 +70,9 @@ pub fn approach_nearby_boid_groups(
                 if average_velocity.length_squared() > EPS {
                     let current_dir = kinematics.velocity.normalize_or_zero();
                     let force_direction = average_velocity.normalize_or_zero();
-                    let new_dir = current_dir.lerp(force_direction, BOID_APPROACH_DAMPENING).normalize_or_zero();
+                    let new_dir = current_dir
+                        .lerp(force_direction, BOID_APPROACH_DAMPENING)
+                        .normalize_or_zero();
                     kinematics.velocity = new_dir * kinematics.velocity.length();
                 }
             }
@@ -91,7 +93,7 @@ pub fn avoid_nearby_boids(
             let mut force_vec = Vec2::ZERO;
             for value in node
                 .get_all_descendant_values()
-                .filter(|&v| v.entity != entity)
+                .filter(|v| v.entity != entity)
             {
                 let delta_vec = my_rect.min - value.rect.min;
                 let direction_away = delta_vec.normalize_or_zero();
@@ -104,7 +106,9 @@ pub fn avoid_nearby_boids(
             if force_vec.length_squared() > EPS {
                 let current_dir = kinematics.velocity.normalize_or_zero();
                 let force_direction = force_vec.normalize_or_zero().extend(0.);
-                let new_dir = current_dir.lerp(force_direction, BOID_AVOID_DAMPENING).normalize_or_zero();
+                let new_dir = current_dir
+                    .lerp(force_direction, BOID_AVOID_DAMPENING)
+                    .normalize_or_zero();
                 kinematics.velocity = new_dir * kinematics.velocity.length();
             }
         }

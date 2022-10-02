@@ -27,20 +27,6 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         self.children.len() == 0
     }
 
-    pub fn clean_children(&mut self) {
-        let mut empty_children = 0;
-        for child in &mut self.children {
-            if child.is_leaf() && child.values.len() == 0 {
-                empty_children += 1;
-            } else {
-                child.clean_children();
-            }
-        }
-        if empty_children == 4 {
-            self.children.clear();
-        }
-    }
-
     // loop through self and all descendents, run aggregation function and return summed result
     pub fn aggregate_statistic<AggT: AddAssign<AggT>, AggFn: Fn(&QuadtreeNode<T>) -> AggT>(
         &self,
@@ -66,10 +52,8 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         } else {
             if self.values.len() < THRESHOLD {
                 self.values.insert(value);
-            } else if self.children_contain_rect(value.get_rect()) {
-                if let Some(child) = self.query_rect_mut(value.get_rect()) {
-                    child.add(value);
-                }
+            } else if let Some(child) = self.get_child_containing_rect_mut(value.get_rect()) {
+                child.add(value);
             } else {
                 self.values.insert(value);
             }
@@ -93,47 +77,19 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         }
     }
 
-    pub fn find_value(&self, value: &T) -> Option<&QuadtreeNode<T>> {
-        if self.contains_value(value) {
-            return Some(self);
-        }
-        for child in &self.children {
-            if let Some(node) = child.find_value(value) {
-                if node.contains_value(value) {
-                    return Some(node);
-                }
-            }
-        }
-        None
+    pub fn get_child_containing_rect_mut(&mut self, rect: &Rect) -> Option<&mut QuadtreeNode<T>> {
+        self.children
+            .iter_mut()
+            .find(|child| child.contains_rect(rect))
     }
 
     pub fn find_value_mut(&mut self, value: &T) -> Option<&mut QuadtreeNode<T>> {
         if self.contains_value(value) {
             return Some(self);
         }
-        for child in &mut self.children {
-            if let Some(node) = child.find_value_mut(value) {
-                if node.contains_value(value) {
-                    return Some(node);
-                }
-            }
-        }
-        None
-    }
-
-    pub fn get_all_descendant_values(&self) -> Box<dyn Iterator<Item = &T> + '_> {
-        if self.is_leaf() {
-            Box::new(self.values.iter())
-        } else {
-            Box::new(
-                self.values
-                    .iter()
-                    .chain(self.children[0].get_all_descendant_values())
-                    .chain(self.children[1].get_all_descendant_values())
-                    .chain(self.children[2].get_all_descendant_values())
-                    .chain(self.children[3].get_all_descendant_values()),
-            )
-        }
+        self.children
+            .iter_mut()
+            .find_map(|c| c.find_value_mut(value))
     }
 
     pub fn delete(&mut self, value: &T) -> Option<T> {
@@ -152,12 +108,10 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         if !self.contains_rect(rect) {
             return None;
         }
-        for child in &self.children {
-            if let Some(gc) = child.query_rect(rect) {
-                return Some(gc);
-            }
+        match self.children.iter().find_map(|c| c.query_rect(rect)) {
+            Some(gc) => Some(gc),
+            None => Some(self),
         }
-        Some(self)
     }
 
     pub fn query_rect_mut(&mut self, rect: &Rect) -> Option<&mut QuadtreeNode<T>> {
@@ -167,22 +121,43 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         if !self.children_contain_rect(rect) {
             return Some(self);
         }
-        for child in &mut self.children {
-            if let Some(gc) = child.query_rect_mut(rect) {
-                return Some(gc);
-            }
+        if let Some(gc) = self
+            .children
+            .iter_mut()
+            .find_map(|c| c.query_rect_mut(rect))
+        {
+            return Some(gc);
         }
         None
+    }
+
+    pub fn get_all_descendant_nodes(&self) -> Box<dyn Iterator<Item = &QuadtreeNode<T>> + '_> {
+        Box::new(
+            self.children
+                .iter()
+                .filter(|c| !c.is_leaf())
+                .flat_map(|c| c.get_all_descendant_nodes()),
+        )
+    }
+
+    pub fn get_all_descendant_values(&self) -> Box<dyn Iterator<Item = &T> + '_> {
+        Box::new(
+            self.values.iter().chain(
+                self.get_all_descendant_nodes()
+                    .flat_map(|c| c.values.iter()),
+            ),
+        )
     }
 
     fn create_children(&mut self) {
         if self.children.len() > 0 {
             return;
         }
-        for rect in partition_rect(&self.rect) {
-            self.children
-                .push(QuadtreeNode::empty(rect, self.depth + 1));
-        }
+        self.children.extend(
+            partition_rect(&self.rect)
+                .iter()
+                .map(|&rect| QuadtreeNode::empty(rect, self.depth + 1)),
+        );
     }
 
     fn distribute_values(&mut self) {
@@ -191,13 +166,10 @@ impl<T: QuadtreeValue> QuadtreeNode<T> {
         }
         let values: Vec<T> = self.values.drain().collect();
         for value in values {
-            match self.query_rect_mut(value.get_rect()) {
-                Some(node) => {
-                    node.add(value);
-                }
-                None => {
-                    self.add(value);
-                }
+            if let Some(child) = self.get_child_containing_rect_mut(value.get_rect()) {
+                child.add(value);
+            } else {
+                self.add(value);
             }
         }
     }
